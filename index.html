@@ -4,16 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#ffffff" />
-  <title>המיקום שלי</title>
+  <title>המיקום שלי - V1.1</title>
   <style>
     :root {
       font-family: Arial, Helvetica, sans-serif;
       color-scheme: light;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -27,7 +25,7 @@
 
     .app {
       width: 100%;
-      max-width: 520px;
+      max-width: 560px;
     }
 
     .card {
@@ -35,12 +33,18 @@
       border-radius: 20px;
       padding: 22px;
       box-shadow: 0 10px 30px rgba(0,0,0,.08);
+      margin-bottom: 16px;
     }
 
     h1 {
       margin: 0 0 8px;
       font-size: 28px;
       text-align: center;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
     }
 
     .subtitle {
@@ -68,6 +72,11 @@
     .status.error {
       background: #fef2f2;
       color: #991b1b;
+    }
+
+    .status.loading {
+      background: #eff6ff;
+      color: #1d4ed8;
     }
 
     button {
@@ -113,8 +122,17 @@
       font-size: 18px;
       font-weight: 700;
       word-break: break-word;
+    }
+
+    .ltr {
       direction: ltr;
       text-align: left;
+    }
+
+    .address-main {
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.5;
     }
 
     .note {
@@ -147,46 +165,101 @@
   <main class="app">
     <section class="card">
       <h1>📍 המיקום שלי</h1>
-      <p class="subtitle">לחץ על הכפתור ואשר גישה למיקום כדי לראות את הנתונים שהמכשיר מספק.</p>
+      <p class="subtitle">V1.1 — GPS + כתובת אנושית</p>
 
       <div id="status" class="status">ממתין לבקשת מיקום</div>
 
       <button id="locationBtn" type="button">אפשר מיקום / רענן מיקום</button>
+    </section>
+
+    <section class="card">
+      <h2>🏠 כתובת</h2>
+
+      <div class="grid">
+        <div class="row wide">
+          <span class="label">כתובת מלאה</span>
+          <span class="value address-main" id="displayName">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">מדינה</span>
+          <span class="value" id="country">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">מחוז / אזור</span>
+          <span class="value" id="state">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">עיר / יישוב</span>
+          <span class="value" id="city">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">שכונה</span>
+          <span class="value" id="neighbourhood">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">רחוב</span>
+          <span class="value" id="road">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">מספר בית</span>
+          <span class="value" id="houseNumber">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">מיקוד</span>
+          <span class="value ltr" id="postcode">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">קוד מדינה</span>
+          <span class="value ltr" id="countryCode">—</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>🛰️ נתוני GPS</h2>
 
       <div class="grid">
         <div class="row">
           <span class="label">Latitude — קו רוחב</span>
-          <span class="value" id="latitude">—</span>
+          <span class="value ltr" id="latitude">—</span>
         </div>
 
         <div class="row">
           <span class="label">Longitude — קו אורך</span>
-          <span class="value" id="longitude">—</span>
+          <span class="value ltr" id="longitude">—</span>
         </div>
 
         <div class="row">
           <span class="label">Accuracy — דיוק</span>
-          <span class="value" id="accuracy">—</span>
+          <span class="value ltr" id="accuracy">—</span>
         </div>
 
         <div class="row">
           <span class="label">Altitude — גובה</span>
-          <span class="value" id="altitude">—</span>
+          <span class="value ltr" id="altitude">—</span>
         </div>
 
         <div class="row">
           <span class="label">Altitude Accuracy</span>
-          <span class="value" id="altitudeAccuracy">—</span>
+          <span class="value ltr" id="altitudeAccuracy">—</span>
         </div>
 
         <div class="row">
           <span class="label">Heading — כיוון</span>
-          <span class="value" id="heading">—</span>
+          <span class="value ltr" id="heading">—</span>
         </div>
 
         <div class="row">
           <span class="label">Speed — מהירות</span>
-          <span class="value" id="speed">—</span>
+          <span class="value ltr" id="speed">—</span>
         </div>
 
         <div class="row">
@@ -195,11 +268,13 @@
         </div>
       </div>
 
-      <a id="mapLink" class="map-link" target="_blank" rel="noopener noreferrer">פתח את המיקום במפה</a>
+      <a id="mapLink" class="map-link" target="_blank" rel="noopener noreferrer">
+        פתח את המיקום במפה
+      </a>
 
       <p class="note">
-        הערה: חלק מהפרמטרים, כמו גובה, כיוון ומהירות, לא תמיד זמינים בכל מכשיר.
-        כדי שהמיקום יעבוד יש לפתוח את הקובץ דרך אתר HTTPS, למשל GitHub Pages.
+        כתובת הרחוב מתקבלת באמצעות Reverse Geocoding על בסיס הקואורדינטות.
+        רמת הדיוק תלויה ב-GPS ובמידע הקיים בשירות המפות.
       </p>
     </section>
   </main>
@@ -209,7 +284,7 @@
     const buttonEl = document.getElementById('locationBtn');
     const mapLinkEl = document.getElementById('mapLink');
 
-    const fields = {
+    const gpsFields = {
       latitude: document.getElementById('latitude'),
       longitude: document.getElementById('longitude'),
       accuracy: document.getElementById('accuracy'),
@@ -220,8 +295,20 @@
       timestamp: document.getElementById('timestamp')
     };
 
+    const addressFields = {
+      displayName: document.getElementById('displayName'),
+      country: document.getElementById('country'),
+      state: document.getElementById('state'),
+      city: document.getElementById('city'),
+      neighbourhood: document.getElementById('neighbourhood'),
+      road: document.getElementById('road'),
+      houseNumber: document.getElementById('houseNumber'),
+      postcode: document.getElementById('postcode'),
+      countryCode: document.getElementById('countryCode')
+    };
+
     const showValue = (value, suffix = '') => {
-      return value === null || value === undefined || Number.isNaN(value)
+      return value === null || value === undefined || value === '' || Number.isNaN(value)
         ? 'לא זמין'
         : `${value}${suffix}`;
     };
@@ -231,6 +318,75 @@
       statusEl.textContent = message;
     }
 
+    function resetAddress() {
+      Object.values(addressFields).forEach(el => el.textContent = '—');
+    }
+
+    async function reverseGeocode(lat, lon) {
+      resetAddress();
+      setStatus('המיקום התקבל. מתרגם לכתובת...', 'loading');
+
+      const url =
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2` +
+        `&lat=${encodeURIComponent(lat)}` +
+        `&lon=${encodeURIComponent(lon)}` +
+        `&zoom=18&addressdetails=1&accept-language=he`;
+
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const a = data.address || {};
+
+        const city =
+          a.city ||
+          a.town ||
+          a.village ||
+          a.municipality ||
+          a.locality ||
+          a.county;
+
+        const neighbourhood =
+          a.neighbourhood ||
+          a.suburb ||
+          a.quarter ||
+          a.city_district;
+
+        const road =
+          a.road ||
+          a.pedestrian ||
+          a.residential ||
+          a.footway ||
+          a.path;
+
+        addressFields.displayName.textContent = showValue(data.display_name);
+        addressFields.country.textContent = showValue(a.country);
+        addressFields.state.textContent = showValue(a.state || a.region);
+        addressFields.city.textContent = showValue(city);
+        addressFields.neighbourhood.textContent = showValue(neighbourhood);
+        addressFields.road.textContent = showValue(road);
+        addressFields.houseNumber.textContent = showValue(a.house_number);
+        addressFields.postcode.textContent = showValue(a.postcode);
+        addressFields.countryCode.textContent = showValue(
+          a.country_code ? a.country_code.toUpperCase() : null
+        );
+
+        setStatus('המיקום והכתובת התקבלו בהצלחה', 'ok');
+      } catch (error) {
+        console.error('Reverse geocoding failed:', error);
+        addressFields.displayName.textContent = 'לא ניתן לקבל כתובת כרגע';
+        setStatus('ה-GPS התקבל, אך לא ניתן לתרגם את המיקום לכתובת', 'error');
+      }
+    }
+
     function requestLocation() {
       if (!('geolocation' in navigator)) {
         setStatus('הדפדפן הזה אינו תומך בשירותי מיקום', 'error');
@@ -238,44 +394,44 @@
       }
 
       buttonEl.disabled = true;
-      setStatus('מקבל מיקום...');
+      setStatus('מקבל מיקום GPS...', 'loading');
 
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const c = position.coords;
 
-          fields.latitude.textContent = showValue(c.latitude?.toFixed(7));
-          fields.longitude.textContent = showValue(c.longitude?.toFixed(7));
-          fields.accuracy.textContent = showValue(
+          gpsFields.latitude.textContent = showValue(c.latitude?.toFixed(7));
+          gpsFields.longitude.textContent = showValue(c.longitude?.toFixed(7));
+          gpsFields.accuracy.textContent = showValue(
             c.accuracy !== null ? Math.round(c.accuracy) : null,
             ' מטר'
           );
-          fields.altitude.textContent = showValue(
+          gpsFields.altitude.textContent = showValue(
             c.altitude !== null ? c.altitude.toFixed(1) : null,
             ' מטר'
           );
-          fields.altitudeAccuracy.textContent = showValue(
+          gpsFields.altitudeAccuracy.textContent = showValue(
             c.altitudeAccuracy !== null ? Math.round(c.altitudeAccuracy) : null,
             ' מטר'
           );
-          fields.heading.textContent = showValue(
+          gpsFields.heading.textContent = showValue(
             c.heading !== null ? Math.round(c.heading) : null,
             '°'
           );
-          fields.speed.textContent = showValue(
+          gpsFields.speed.textContent = showValue(
             c.speed !== null ? c.speed.toFixed(2) : null,
             ' m/s'
           );
-
-          fields.timestamp.textContent = new Date(position.timestamp)
+          gpsFields.timestamp.textContent = new Date(position.timestamp)
             .toLocaleString('he-IL');
 
           const lat = c.latitude;
           const lon = c.longitude;
+
           mapLinkEl.href = `https://www.google.com/maps?q=${lat},${lon}`;
           mapLinkEl.style.display = 'block';
 
-          setStatus('המיקום התקבל בהצלחה', 'ok');
+          await reverseGeocode(lat, lon);
           buttonEl.disabled = false;
         },
         (error) => {
