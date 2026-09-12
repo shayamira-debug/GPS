@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>המיקום שלי</title>
+  <style>
+    :root {
+      font-family: Arial, Helvetica, sans-serif;
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f6f8;
+      color: #1f2937;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 24px 14px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.08);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      text-align: center;
+    }
+
+    .subtitle {
+      margin: 0 0 22px;
+      text-align: center;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    .status {
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      background: #eef2f7;
+      color: #374151;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .status.ok {
+      background: #ecfdf5;
+      color: #065f46;
+    }
+
+    .status.error {
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #111827;
+      color: #ffffff;
+      margin-bottom: 18px;
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: default;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .row {
+      background: #f9fafb;
+      border: 1px solid #eef0f3;
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    .label {
+      display: block;
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 5px;
+    }
+
+    .value {
+      display: block;
+      font-size: 18px;
+      font-weight: 700;
+      word-break: break-word;
+      direction: ltr;
+      text-align: left;
+    }
+
+    .note {
+      margin-top: 16px;
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .map-link {
+      display: none;
+      text-align: center;
+      margin-top: 16px;
+      text-decoration: none;
+      font-weight: 700;
+      color: #2563eb;
+    }
+
+    @media (min-width: 480px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .wide {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="card">
+      <h1>📍 המיקום שלי</h1>
+      <p class="subtitle">לחץ על הכפתור ואשר גישה למיקום כדי לראות את הנתונים שהמכשיר מספק.</p>
+
+      <div id="status" class="status">ממתין לבקשת מיקום</div>
+
+      <button id="locationBtn" type="button">אפשר מיקום / רענן מיקום</button>
+
+      <div class="grid">
+        <div class="row">
+          <span class="label">Latitude — קו רוחב</span>
+          <span class="value" id="latitude">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Longitude — קו אורך</span>
+          <span class="value" id="longitude">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Accuracy — דיוק</span>
+          <span class="value" id="accuracy">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Altitude — גובה</span>
+          <span class="value" id="altitude">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Altitude Accuracy</span>
+          <span class="value" id="altitudeAccuracy">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Heading — כיוון</span>
+          <span class="value" id="heading">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Speed — מהירות</span>
+          <span class="value" id="speed">—</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Timestamp — זמן הקריאה</span>
+          <span class="value" id="timestamp">—</span>
+        </div>
+      </div>
+
+      <a id="mapLink" class="map-link" target="_blank" rel="noopener noreferrer">פתח את המיקום במפה</a>
+
+      <p class="note">
+        הערה: חלק מהפרמטרים, כמו גובה, כיוון ומהירות, לא תמיד זמינים בכל מכשיר.
+        כדי שהמיקום יעבוד יש לפתוח את הקובץ דרך אתר HTTPS, למשל GitHub Pages.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const buttonEl = document.getElementById('locationBtn');
+    const mapLinkEl = document.getElementById('mapLink');
+
+    const fields = {
+      latitude: document.getElementById('latitude'),
+      longitude: document.getElementById('longitude'),
+      accuracy: document.getElementById('accuracy'),
+      altitude: document.getElementById('altitude'),
+      altitudeAccuracy: document.getElementById('altitudeAccuracy'),
+      heading: document.getElementById('heading'),
+      speed: document.getElementById('speed'),
+      timestamp: document.getElementById('timestamp')
+    };
+
+    const showValue = (value, suffix = '') => {
+      return value === null || value === undefined || Number.isNaN(value)
+        ? 'לא זמין'
+        : `${value}${suffix}`;
+    };
+
+    function setStatus(message, type = '') {
+      statusEl.className = 'status' + (type ? ` ${type}` : '');
+      statusEl.textContent = message;
+    }
+
+    function requestLocation() {
+      if (!('geolocation' in navigator)) {
+        setStatus('הדפדפן הזה אינו תומך בשירותי מיקום', 'error');
+        return;
+      }
+
+      buttonEl.disabled = true;
+      setStatus('מקבל מיקום...');
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const c = position.coords;
+
+          fields.latitude.textContent = showValue(c.latitude?.toFixed(7));
+          fields.longitude.textContent = showValue(c.longitude?.toFixed(7));
+          fields.accuracy.textContent = showValue(
+            c.accuracy !== null ? Math.round(c.accuracy) : null,
+            ' מטר'
+          );
+          fields.altitude.textContent = showValue(
+            c.altitude !== null ? c.altitude.toFixed(1) : null,
+            ' מטר'
+          );
+          fields.altitudeAccuracy.textContent = showValue(
+            c.altitudeAccuracy !== null ? Math.round(c.altitudeAccuracy) : null,
+            ' מטר'
+          );
+          fields.heading.textContent = showValue(
+            c.heading !== null ? Math.round(c.heading) : null,
+            '°'
+          );
+          fields.speed.textContent = showValue(
+            c.speed !== null ? c.speed.toFixed(2) : null,
+            ' m/s'
+          );
+
+          fields.timestamp.textContent = new Date(position.timestamp)
+            .toLocaleString('he-IL');
+
+          const lat = c.latitude;
+          const lon = c.longitude;
+          mapLinkEl.href = `https://www.google.com/maps?q=${lat},${lon}`;
+          mapLinkEl.style.display = 'block';
+
+          setStatus('המיקום התקבל בהצלחה', 'ok');
+          buttonEl.disabled = false;
+        },
+        (error) => {
+          let message = 'לא ניתן לקבל את המיקום';
+
+          if (error.code === error.PERMISSION_DENIED) {
+            message = 'הרשאת המיקום נדחתה';
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            message = 'המיקום אינו זמין כרגע';
+          } else if (error.code === error.TIMEOUT) {
+            message = 'הבקשה למיקום ארכה יותר מדי זמן';
+          }
+
+          setStatus(message, 'error');
+          buttonEl.disabled = false;
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+    }
+
+    buttonEl.addEventListener('click', requestLocation);
+  </script>
+</body>
+</html>
