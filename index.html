@@ -4,225 +4,563 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>המיקום שלי - V1.2</title>
+  <title>המיקום שלי - V1.2.1</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIINfQ3ynl6bWP0kMZbMZbMZbMZbMZbMZbM="
-        crossorigin=""
-        onerror="this.removeAttribute('integrity')">
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;background:#f4f6f8;color:#1f2937;font-family:Arial,Helvetica,sans-serif;padding:18px 12px}
-    .app{max-width:620px;margin:auto}
-    .card{background:#fff;border-radius:20px;padding:20px;margin-bottom:14px;box-shadow:0 8px 26px rgba(0,0,0,.07)}
-    h1{margin:0;text-align:center;font-size:28px}
-    h2{margin:0 0 14px;font-size:20px}
-    .sub{text-align:center;color:#6b7280;margin:8px 0 18px}
-    .status{padding:12px;border-radius:13px;background:#eef2f7;text-align:center;font-weight:700;margin-bottom:14px}
-    .ok{background:#ecfdf5;color:#065f46}.err{background:#fef2f2;color:#991b1b}.loading{background:#eff6ff;color:#1d4ed8}
-    .buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    button{border:0;border-radius:13px;padding:14px;font-size:16px;font-weight:700;cursor:pointer}
-    #startBtn{background:#111827;color:#fff}
-    #stopBtn{background:#e5e7eb;color:#111827}
-    button:disabled{opacity:.5}
-    #map{height:360px;width:100%;border-radius:16px;background:#e5e7eb}
-    .mapnote{font-size:12px;color:#6b7280;margin:10px 2px 0;line-height:1.5}
-    .grid{display:grid;grid-template-columns:1fr;gap:9px}
-    .row{background:#f9fafb;border:1px solid #edf0f3;border-radius:13px;padding:11px 13px}
-    .label{font-size:12px;color:#6b7280;display:block;margin-bottom:4px}
-    .value{font-size:17px;font-weight:700;word-break:break-word}
-    .ltr{direction:ltr;text-align:left}
-    .wide{grid-column:1/-1}
-    .address{font-size:19px;line-height:1.45}
-    @media(min-width:500px){.grid{grid-template-columns:1fr 1fr}}
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #f4f6f8;
+      color: #1f2937;
+      font-family: Arial, Helvetica, sans-serif;
+      padding: 18px 12px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 8px 26px rgba(0,0,0,.07);
+      overflow: hidden;
+    }
+
+    h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 28px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+    }
+
+    .sub {
+      text-align: center;
+      color: #6b7280;
+      margin: 8px 0 18px;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 13px;
+      background: #eef2f7;
+      text-align: center;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .status.ok {
+      background: #ecfdf5;
+      color: #065f46;
+    }
+
+    .status.err {
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .status.loading {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 13px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #startBtn {
+      background: #111827;
+      color: #fff;
+    }
+
+    #stopBtn {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: default;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 9px;
+    }
+
+    .row {
+      background: #f9fafb;
+      border: 1px solid #edf0f3;
+      border-radius: 13px;
+      padding: 11px 13px;
+    }
+
+    .label {
+      font-size: 12px;
+      color: #6b7280;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .value {
+      font-size: 17px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .ltr {
+      direction: ltr;
+      text-align: left;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    .address {
+      font-size: 19px;
+      line-height: 1.45;
+    }
+
+    #map {
+      width: 100%;
+      height: 360px;
+      min-height: 360px;
+      border-radius: 16px;
+      background: #e5e7eb;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .mapnote {
+      font-size: 12px;
+      color: #6b7280;
+      margin: 10px 2px 0;
+      line-height: 1.5;
+    }
+
+    @media (min-width: 500px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
   </style>
 </head>
+
 <body>
 <main class="app">
+
   <section class="card">
     <h1>📍 המיקום שלי</h1>
-    <div class="sub">V1.2 — מפה חיה</div>
+    <div class="sub">V1.2.1 — מעקב מיקום + מפה חיה</div>
+
     <div id="status" class="status">ממתין להפעלת המיקום</div>
+
     <div class="buttons">
-      <button id="startBtn">▶ התחל מעקב</button>
-      <button id="stopBtn" disabled>■ עצור מעקב</button>
+      <button id="startBtn" type="button">▶ התחל מעקב</button>
+      <button id="stopBtn" type="button" disabled>■ עצור מעקב</button>
     </div>
   </section>
 
   <section class="card">
-    <h2>🗺️ מפה חיה</h2>
-    <div id="map"></div>
-    <div class="mapnote">הסמן מתעדכן כאשר המכשיר מספק מיקום חדש. המעגל סביב הסמן מייצג בקירוב את דיוק ה-GPS.</div>
-  </section>
-
-  <section class="card">
     <h2>🏠 כתובת</h2>
+
     <div class="grid">
-      <div class="row wide"><span class="label">כתובת מלאה</span><span id="fullAddress" class="value address">—</span></div>
-      <div class="row"><span class="label">מדינה</span><span id="country" class="value">—</span></div>
-      <div class="row"><span class="label">מחוז / אזור</span><span id="state" class="value">—</span></div>
-      <div class="row"><span class="label">עיר / יישוב</span><span id="city" class="value">—</span></div>
-      <div class="row"><span class="label">שכונה</span><span id="neighbourhood" class="value">—</span></div>
-      <div class="row"><span class="label">רחוב</span><span id="road" class="value">—</span></div>
-      <div class="row"><span class="label">מספר בית</span><span id="house" class="value">—</span></div>
-      <div class="row"><span class="label">מיקוד</span><span id="postcode" class="value ltr">—</span></div>
+      <div class="row wide">
+        <span class="label">כתובת מלאה</span>
+        <span id="fullAddress" class="value address">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">מדינה</span>
+        <span id="country" class="value">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">מחוז / אזור</span>
+        <span id="state" class="value">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">עיר / יישוב</span>
+        <span id="city" class="value">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">שכונה</span>
+        <span id="neighbourhood" class="value">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">רחוב</span>
+        <span id="road" class="value">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">מספר בית</span>
+        <span id="house" class="value">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">מיקוד</span>
+        <span id="postcode" class="value ltr">—</span>
+      </div>
     </div>
   </section>
 
   <section class="card">
     <h2>🛰️ נתוני GPS חיים</h2>
+
     <div class="grid">
-      <div class="row"><span class="label">Latitude</span><span id="lat" class="value ltr">—</span></div>
-      <div class="row"><span class="label">Longitude</span><span id="lon" class="value ltr">—</span></div>
-      <div class="row"><span class="label">דיוק</span><span id="accuracy" class="value ltr">—</span></div>
-      <div class="row"><span class="label">גובה</span><span id="altitude" class="value ltr">—</span></div>
-      <div class="row"><span class="label">כיוון</span><span id="heading" class="value ltr">—</span></div>
-      <div class="row"><span class="label">מהירות</span><span id="speed" class="value ltr">—</span></div>
-      <div class="row wide"><span class="label">עדכון אחרון</span><span id="time" class="value">—</span></div>
+      <div class="row">
+        <span class="label">Latitude</span>
+        <span id="lat" class="value ltr">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">Longitude</span>
+        <span id="lon" class="value ltr">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">דיוק</span>
+        <span id="accuracy" class="value ltr">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">גובה</span>
+        <span id="altitude" class="value ltr">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">כיוון</span>
+        <span id="heading" class="value ltr">—</span>
+      </div>
+
+      <div class="row">
+        <span class="label">מהירות</span>
+        <span id="speed" class="value ltr">—</span>
+      </div>
+
+      <div class="row wide">
+        <span class="label">עדכון אחרון</span>
+        <span id="time" class="value">—</span>
+      </div>
     </div>
   </section>
+
+  <!-- המפה הועברה לתחתית העמוד -->
+  <section class="card">
+    <h2>🗺️ מפה חיה</h2>
+
+    <div id="map"></div>
+
+    <div class="mapnote">
+      הסמן מתעדכן כאשר המכשיר מספק מיקום חדש.
+      המעגל סביב הסמן מייצג בקירוב את רמת דיוק ה-GPS.
+    </div>
+  </section>
+
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-let map, marker, accuracyCircle, watchId = null;
-let firstFix = true;
-let lastGeocodeLat = null, lastGeocodeLon = null, lastGeocodeTime = 0;
+  let map = null;
+  let marker = null;
+  let accuracyCircle = null;
+  let watchId = null;
+  let firstFix = true;
 
-const $ = id => document.getElementById(id);
-const val = v => (v === null || v === undefined || Number.isNaN(v)) ? 'לא זמין' : v;
+  let lastGeocodeLat = null;
+  let lastGeocodeLon = null;
+  let lastGeocodeTime = 0;
 
-function status(text, type=''){
-  $('status').className='status '+type;
-  $('status').textContent=text;
-}
+  const $ = (id) => document.getElementById(id);
 
-function initMap(){
-  if(map) return;
-  map = L.map('map', {zoomControl:true}).setView([31.8,34.9], 8);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19,
-    attribution:'&copy; OpenStreetMap contributors'
-  }).addTo(map);
-}
-
-function distanceMeters(lat1,lon1,lat2,lon2){
-  if(lat2 === null || lon2 === null) return Infinity;
-  const R=6371000, p=Math.PI/180;
-  const a=Math.sin((lat2-lat1)*p/2)**2 +
-    Math.cos(lat1*p)*Math.cos(lat2*p)*Math.sin((lon2-lon1)*p/2)**2;
-  return 2*R*Math.asin(Math.sqrt(a));
-}
-
-async function reverseGeocode(lat,lon){
-  // כדי לא להעמיס על שירות הכתובות: עדכון רק לאחר תזוזה משמעותית
-  // או לאחר שחלפו לפחות 30 שניות.
-  const now=Date.now();
-  const moved=distanceMeters(lat,lon,lastGeocodeLat,lastGeocodeLon);
-  if(moved < 25 && now-lastGeocodeTime < 30000) return;
-
-  lastGeocodeLat=lat; lastGeocodeLon=lon; lastGeocodeTime=now;
-
-  try{
-    const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=18&addressdetails=1&accept-language=he`;
-    const r=await fetch(url,{headers:{Accept:'application/json'}});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const d=await r.json(), a=d.address||{};
-    const city=a.city||a.town||a.village||a.municipality||a.locality||a.county;
-    $('fullAddress').textContent=val(d.display_name);
-    $('country').textContent=val(a.country);
-    $('state').textContent=val(a.state||a.region);
-    $('city').textContent=val(city);
-    $('neighbourhood').textContent=val(a.neighbourhood||a.suburb||a.quarter||a.city_district);
-    $('road').textContent=val(a.road||a.pedestrian||a.residential||a.footway||a.path);
-    $('house').textContent=val(a.house_number);
-    $('postcode').textContent=val(a.postcode);
-  }catch(e){
-    console.warn('Reverse geocoding:',e);
-  }
-}
-
-function updatePosition(position){
-  const c=position.coords, lat=c.latitude, lon=c.longitude;
-
-  $('lat').textContent=lat.toFixed(7);
-  $('lon').textContent=lon.toFixed(7);
-  $('accuracy').textContent=Math.round(c.accuracy)+' מטר';
-  $('altitude').textContent=c.altitude==null?'לא זמין':c.altitude.toFixed(1)+' מטר';
-  $('heading').textContent=c.heading==null?'לא זמין':Math.round(c.heading)+'°';
-  $('speed').textContent=c.speed==null?'לא זמין':c.speed.toFixed(2)+' m/s';
-  $('time').textContent=new Date(position.timestamp).toLocaleString('he-IL');
-
-  const point=[lat,lon];
-  if(!marker){
-    marker=L.marker(point).addTo(map).bindPopup('המיקום הנוכחי');
-    accuracyCircle=L.circle(point,{radius:c.accuracy}).addTo(map);
-  }else{
-    marker.setLatLng(point);
-    accuracyCircle.setLatLng(point).setRadius(c.accuracy);
+  function valueOrNA(value) {
+    return (value === null || value === undefined || Number.isNaN(value))
+      ? 'לא זמין'
+      : value;
   }
 
-  // בפעם הראשונה המפה מתמקדת במשתמש.
-  // בהמשך ניתן להזיז/להגדיל את המפה ידנית בלי שהיא "תקפוץ" חזרה בכל עדכון.
-  if(firstFix){
-    map.setView(point,17);
-    firstFix=false;
+  function setStatus(text, type = '') {
+    const el = $('status');
+    el.className = 'status' + (type ? ' ' + type : '');
+    el.textContent = text;
   }
 
-  status('מעקב מיקום פעיל • דיוק ±'+Math.round(c.accuracy)+' מטר','ok');
-  reverseGeocode(lat,lon);
-}
+  function initMap() {
+    if (map) return;
 
-function geoError(e){
-  const messages={
-    1:'הרשאת המיקום נדחתה',
-    2:'המיקום אינו זמין כרגע',
-    3:'הבקשה למיקום ארכה יותר מדי זמן'
-  };
-  status(messages[e.code]||'שגיאה בקבלת המיקום','err');
-}
+    if (typeof L === 'undefined') {
+      setStatus('ספריית המפה לא נטענה. בדוק חיבור לאינטרנט.', 'err');
+      return;
+    }
 
-function startTracking(){
-  if(!navigator.geolocation){
-    status('הדפדפן אינו תומך בשירותי מיקום','err');
-    return;
+    map = L.map('map', {
+      zoomControl: true,
+      attributionControl: true
+    }).setView([31.8, 34.9], 8);
+
+    L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }
+    ).addTo(map);
+
+    // חשוב במיוחד במובייל כדי ש-Leaflet יחשב נכון את גודל המפה.
+    setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 250);
   }
-  initMap();
-  if(watchId!==null) return;
-  firstFix=true;
-  status('מפעיל GPS...','loading');
-  $('startBtn').disabled=true;
-  $('stopBtn').disabled=false;
 
-  watchId=navigator.geolocation.watchPosition(
-    updatePosition,
-    e=>{
-      geoError(e);
-      if(e.code===1) stopTracking();
-    },
-    {enableHighAccuracy:true, maximumAge:0, timeout:20000}
-  );
-}
+  function distanceMeters(lat1, lon1, lat2, lon2) {
+    if (lat2 === null || lon2 === null) return Infinity;
 
-function stopTracking(){
-  if(watchId!==null){
-    navigator.geolocation.clearWatch(watchId);
-    watchId=null;
+    const R = 6371000;
+    const p = Math.PI / 180;
+
+    const a =
+      Math.sin((lat2 - lat1) * p / 2) ** 2 +
+      Math.cos(lat1 * p) *
+      Math.cos(lat2 * p) *
+      Math.sin((lon2 - lon1) * p / 2) ** 2;
+
+    return 2 * R * Math.asin(Math.sqrt(a));
   }
-  $('startBtn').disabled=false;
-  $('stopBtn').disabled=true;
-  status('המעקב נעצר');
-}
 
-$('startBtn').addEventListener('click',startTracking);
-$('stopBtn').addEventListener('click',stopTracking);
+  async function reverseGeocode(lat, lon) {
+    const now = Date.now();
+    const moved = distanceMeters(lat, lon, lastGeocodeLat, lastGeocodeLon);
 
-window.addEventListener('load',()=>{
-  try{ initMap(); }catch(e){
-    status('לא ניתן לטעון את המפה. בדוק חיבור לאינטרנט.','err');
+    // לא שולחים בקשת כתובת על כל עדכון GPS.
+    if (moved < 25 && now - lastGeocodeTime < 30000) {
+      return;
+    }
+
+    lastGeocodeLat = lat;
+    lastGeocodeLon = lon;
+    lastGeocodeTime = now;
+
+    try {
+      const url =
+        'https://nominatim.openstreetmap.org/reverse' +
+        '?format=jsonv2' +
+        '&lat=' + encodeURIComponent(lat) +
+        '&lon=' + encodeURIComponent(lon) +
+        '&zoom=18' +
+        '&addressdetails=1' +
+        '&accept-language=he';
+
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status);
+      }
+
+      const data = await response.json();
+      const a = data.address || {};
+
+      const city =
+        a.city ||
+        a.town ||
+        a.village ||
+        a.municipality ||
+        a.locality ||
+        a.county;
+
+      $('fullAddress').textContent = valueOrNA(data.display_name);
+      $('country').textContent = valueOrNA(a.country);
+      $('state').textContent = valueOrNA(a.state || a.region);
+      $('city').textContent = valueOrNA(city);
+      $('neighbourhood').textContent = valueOrNA(
+        a.neighbourhood ||
+        a.suburb ||
+        a.quarter ||
+        a.city_district
+      );
+      $('road').textContent = valueOrNA(
+        a.road ||
+        a.pedestrian ||
+        a.residential ||
+        a.footway ||
+        a.path
+      );
+      $('house').textContent = valueOrNA(a.house_number);
+      $('postcode').textContent = valueOrNA(a.postcode);
+
+    } catch (error) {
+      console.warn('Reverse geocoding error:', error);
+    }
   }
-});
+
+  function updatePosition(position) {
+    const c = position.coords;
+    const lat = c.latitude;
+    const lon = c.longitude;
+
+    $('lat').textContent = lat.toFixed(7);
+    $('lon').textContent = lon.toFixed(7);
+    $('accuracy').textContent = Math.round(c.accuracy) + ' מטר';
+    $('altitude').textContent =
+      c.altitude == null ? 'לא זמין' : c.altitude.toFixed(1) + ' מטר';
+    $('heading').textContent =
+      c.heading == null ? 'לא זמין' : Math.round(c.heading) + '°';
+    $('speed').textContent =
+      c.speed == null ? 'לא זמין' : c.speed.toFixed(2) + ' m/s';
+    $('time').textContent =
+      new Date(position.timestamp).toLocaleString('he-IL');
+
+    if (!map) {
+      initMap();
+    }
+
+    if (map) {
+      const point = [lat, lon];
+
+      if (!marker) {
+        marker = L.marker(point)
+          .addTo(map)
+          .bindPopup('המיקום הנוכחי');
+
+        accuracyCircle = L.circle(point, {
+          radius: c.accuracy
+        }).addTo(map);
+
+      } else {
+        marker.setLatLng(point);
+        accuracyCircle
+          .setLatLng(point)
+          .setRadius(c.accuracy);
+      }
+
+      if (firstFix) {
+        map.setView(point, 17);
+        firstFix = false;
+
+        setTimeout(() => {
+          map.invalidateSize();
+        }, 150);
+      }
+    }
+
+    setStatus(
+      'מעקב מיקום פעיל • דיוק ±' + Math.round(c.accuracy) + ' מטר',
+      'ok'
+    );
+
+    reverseGeocode(lat, lon);
+  }
+
+  function handleGeoError(error) {
+    const messages = {
+      1: 'הרשאת המיקום נדחתה',
+      2: 'המיקום אינו זמין כרגע',
+      3: 'הבקשה למיקום ארכה יותר מדי זמן'
+    };
+
+    setStatus(
+      messages[error.code] || 'שגיאה בקבלת המיקום',
+      'err'
+    );
+  }
+
+  function startTracking() {
+    if (!navigator.geolocation) {
+      setStatus(
+        'הדפדפן אינו תומך בשירותי מיקום',
+        'err'
+      );
+      return;
+    }
+
+    if (watchId !== null) return;
+
+    initMap();
+
+    firstFix = true;
+
+    setStatus('מפעיל GPS...', 'loading');
+
+    $('startBtn').disabled = true;
+    $('stopBtn').disabled = false;
+
+    watchId = navigator.geolocation.watchPosition(
+      updatePosition,
+      (error) => {
+        handleGeoError(error);
+
+        if (error.code === 1) {
+          stopTracking();
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 20000
+      }
+    );
+  }
+
+  function stopTracking() {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+
+    $('startBtn').disabled = false;
+    $('stopBtn').disabled = true;
+
+    setStatus('המעקב נעצר');
+  }
+
+  $('startBtn').addEventListener('click', startTracking);
+  $('stopBtn').addEventListener('click', stopTracking);
+
+  window.addEventListener('load', () => {
+    initMap();
+
+    setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 500);
+  });
+
+  window.addEventListener('resize', () => {
+    if (map) {
+      setTimeout(() => map.invalidateSize(), 100);
+    }
+  });
 </script>
 </body>
 </html>
