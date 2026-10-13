@@ -171,6 +171,15 @@
     .poi-item { text-align:right; padding:11px; border:1px solid #e2e8f0; background:#f8fafc; border-radius:11px; font-weight:normal; }
     .poi-item strong { display:block; margin-bottom:3px; }
     .poi-item small { color:#64748b; }
+    .place-details { margin-top:12px; padding:15px; border:1px solid #cbd5e1; background:#f8fafc; border-radius:15px; }
+    .place-details[hidden] { display:none; }
+    .place-details h3 { margin:0 0 8px; font-size:21px; }
+    .place-details p { line-height:1.65; margin:8px 0; }
+    .place-details img { width:100%; max-height:230px; object-fit:cover; border-radius:12px; }
+    .place-details a { color:#0f766e; font-weight:bold; }
+    .place-details .source { font-size:12px; color:#64748b; }
+    .place-close { float:left; padding:5px 10px; font-size:14px; background:#e2e8f0; }
+
     .poi-info { color:#475569; font-size:13px; margin-top:10px; line-height:1.5; }
     @media (min-width: 500px) {
       .grid {
@@ -185,7 +194,7 @@
 
   <section class="card">
     <h1>🚶 SIDEWALK</h1>
-    <div class="sub">V1.3.2 — מגלים מה יש סביבי</div>
+    <div class="sub">V1.4 — סיפורים על מקומות</div>
 
     <div id="status" class="status">ממתין להפעלת המיקום</div>
 
@@ -241,6 +250,14 @@
   </section>
 
 
+  <section class="card" id="placeCard" hidden>
+    <div class="place-details" id="placeDetails">
+      <button class="place-close" type="button" id="closePlace">סגור ✕</button>
+      <h3 id="placeTitle"></h3>
+      <div id="placeBody" aria-live="polite"></div>
+    </div>
+  </section>
+
   <section class="card">
     <h2>📍 מקומות שנמצאו</h2>
     <div id="poiList" class="poi-list"></div>
@@ -261,6 +278,7 @@
   let currentPosition = null;
   let poiLayer = null;
   let poiRequest = null;
+  let detailsRequest = null;
 
   let lastGeocodeLat = null;
   let lastGeocodeLon = null;
@@ -545,6 +563,7 @@
     $('poiStatus').textContent = 'מחפש מקומות בסביבה...';
     $('poiList').replaceChildren();
     if (poiLayer) poiLayer.clearLayers();
+    closePlace();
     const category = $('poiCategory').value;
     const radius = Number($('poiRadius').value);
     const {lat, lon} = currentPosition;
@@ -594,7 +613,7 @@
         if (!name || plat == null || plon == null) return null;
         const distance = Math.round(distanceMeters(lat, lon, plat, plon));
         return { id: el.type + '/' + el.id, name, lat:plat, lon:plon, distance,
-          kind: el.tags?.amenity || el.tags?.tourism || el.tags?.historic || el.tags?.shop || 'מקום' };
+          kind: el.tags?.amenity || el.tags?.tourism || el.tags?.historic || el.tags?.shop || 'מקום', tags:el.tags || {} };
       }).filter(Boolean).filter(place => {
         const key = place.name.toLowerCase() + ':' + Math.round(place.lat * 10000) + ':' + Math.round(place.lon * 10000);
         if (seen.has(key) || place.distance > radius) return false;
@@ -611,8 +630,10 @@
         const markerPoi = map ? L.circleMarker([place.lat,place.lon], {
           radius:7, color:'#0f766e', weight:2, fillColor:'#2dd4bf', fillOpacity:.85
         }).addTo(poiLayer).bindPopup(document.createTextNode(place.name)) : null;
+        markerPoi?.on('click', () => showPlace(place));
         button.addEventListener('click', () => {
-          if (map) { map.setView([place.lat,place.lon], 17); markerPoi?.openPopup(); document.getElementById('map').scrollIntoView({behavior:'smooth'}); }
+          if (map) { map.setView([place.lat,place.lon], 17); markerPoi?.openPopup(); }
+          showPlace(place);
         });
         list.appendChild(button);
       }
@@ -626,6 +647,88 @@
       if (poiRequest === controller) { poiRequest = null; btn.disabled = false; }
     }
   }
+
+  function closePlace() {
+    if (detailsRequest) { detailsRequest.abort(); detailsRequest = null; }
+    $('placeCard').hidden = true;
+  }
+
+  function placeParagraph(text) {
+    const p = document.createElement('p');
+    p.textContent = text;
+    $('placeBody').appendChild(p);
+  }
+
+  async function wikiAPI(lang, params, signal) {
+    const url = new URL(`https://${lang}.wikipedia.org/w/api.php`);
+    Object.entries({action:'query', format:'json', origin:'*', ...params}).forEach(([k,v])=>url.searchParams.set(k,v));
+    const res = await fetch(url, {signal});
+    if (!res.ok) throw new Error('Wikipedia HTTP '+res.status);
+    return res.json();
+  }
+
+  async function showPlace(place) {
+    if (detailsRequest) detailsRequest.abort();
+    const controller = new AbortController();
+    detailsRequest = controller;
+    $('placeCard').hidden = false;
+    $('placeTitle').textContent = place.name;
+    $('placeBody').replaceChildren();
+    placeParagraph('מחפש מידע ותמונה על המקום...');
+    $('placeCard').scrollIntoView({behavior:'smooth',block:'start'});
+    try {
+      // Use a direct Wikipedia link when OSM provides one; otherwise search by name.
+      const direct = place.tags.wikipedia || place.tags['wikipedia:he'] && 'he:'+place.tags['wikipedia:he'];
+      let lang = 'he', title = null;
+      if (direct && direct.includes(':')) {
+        const split = direct.indexOf(':');
+        lang = direct.slice(0,split).toLowerCase(); title = direct.slice(split+1);
+        if (!['he','en'].includes(lang)) { lang = 'he'; title = null; }
+      }
+      async function getPage(language, pageTitle) {
+        let data;
+        if (pageTitle) {
+          data = await wikiAPI(language, {prop:'extracts|pageimages|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'950',piprop:'thumbnail',pithumbsize:'700',redirects:'1',titles:pageTitle}, controller.signal);
+        } else {
+          data = await wikiAPI(language, {generator:'search',gsrsearch:place.name,gsrlimit:'1',prop:'extracts|pageimages|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'950',piprop:'thumbnail',pithumbsize:'700'}, controller.signal);
+        }
+        return Object.values(data.query?.pages || {})[0];
+      }
+      let page = await getPage(lang,title);
+      if ((!page || page.missing !== undefined || !page.extract) && lang === 'he') page = await getPage('en',null);
+      if (controller.signal.aborted) return;
+      $('placeBody').replaceChildren();
+      // Search results are not necessarily the same place: require name match or direct OSM link.
+      const normalized = str => (str||'').toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+      const match = page && (title || normalized(page.title).includes(normalized(place.name)) || normalized(place.name).includes(normalized(page.title)));
+      if (page?.extract && match) {
+        if (page.thumbnail?.source) {
+          const img = document.createElement('img'); img.src = page.thumbnail.source;
+          img.alt = 'תמונה מתוך ויקיפדיה: '+page.title; img.loading='lazy';
+          $('placeBody').appendChild(img);
+        }
+        placeParagraph(page.extract);
+        if (page.fullurl) {
+          const a = document.createElement('a'); a.href=page.fullurl; a.target='_blank'; a.rel='noopener noreferrer';
+          a.textContent='קרא עוד בוויקיפדיה ↗'; $('placeBody').appendChild(a);
+        }
+        const source=document.createElement('p'); source.className='source';
+        source.textContent='מקור: ויקיפדיה. המידע עשוי להיות בשפה המקורית.'; $('placeBody').appendChild(source);
+      } else {
+        placeParagraph(place.tags.description || place.tags['description:he'] || 'לא נמצא כרגע הסבר אנציקלופדי מאומת למקום זה.');
+        placeParagraph(`סוג מקום: ${place.kind} · מרחק בקו אווירי: ${place.distance} מטר`);
+        const source=document.createElement('p'); source.className='source'; source.textContent='פרטי המקום: OpenStreetMap'; $('placeBody').appendChild(source);
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      $('placeBody').replaceChildren();
+      placeParagraph('לא ניתן כרגע לטעון מידע מוויקיפדיה. נסה שוב מאוחר יותר.');
+      placeParagraph(`סוג מקום: ${place.kind} · מרחק: ${place.distance} מטר`);
+    } finally {
+      if (detailsRequest === controller) detailsRequest = null;
+    }
+  }
+  $('closePlace').addEventListener('click', closePlace);
 
   $('discoverBtn').addEventListener('click', discoverPlaces);
   $('startBtn').addEventListener('click', startTracking);
