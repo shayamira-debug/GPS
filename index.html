@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK — Discover Places Around You (V1.7)</title>
+  <title>SIDEWALK — Discover Places Around You (V1.9)</title>
   <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
   <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -178,6 +178,8 @@
     .poi-pin span { transform:rotate(45deg); display:block; }
     .leaflet-popup-content .poi-popup-title { font-weight:800; color:#10354c; font-size:14px; margin-bottom:5px; }
     .leaflet-popup-content .poi-popup-meta { color:#516a78; font-size:12px; margin-bottom:8px; }
+    .leaflet-popup-content .poi-popup-summary { margin:10px 0; font-size:13px; line-height:1.6; color:#24465a; white-space:normal; }
+    .leaflet-popup-content .poi-popup-source { font-size:10px; color:#758796; margin:4px 0 9px; }
     .leaflet-popup-content button { border:0; border-radius:9px; background:#0d8f98; color:white; padding:8px 12px; font-weight:700; cursor:pointer; }
     .poi-list { display:grid; gap:7px; margin-top:12px; max-height:280px; overflow:auto; }
     .poi-item { text-align:right; padding:11px; border:1px solid #e2e8f0; background:#f8fafc; border-radius:11px; font-weight:normal; }
@@ -261,7 +263,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V1.7 · SIDEWALK</div>
+    <div class="version-tag">V1.9 · SIDEWALK</div>
   </section>
 
   <section class="card">
@@ -294,6 +296,13 @@
       <div><label class="label" for="poiRadius">מרחק</label><select id="poiRadius"><option value="250">250 מטר</option><option value="500" selected>500 מטר</option><option value="1000">1,000 מטר</option></select></div>
     </div>
     <button class="discover-btn" id="discoverBtn" type="button">🔎 גלה מה סביבי</button>
+    <details style="margin-top:12px;font-size:13px;color:#355469" id="searchSettings">
+      <summary style="cursor:pointer;font-weight:700">⚙️ הגדרות חיפוש ואבחון</summary>
+      <label for="geoapifyKey" style="display:block;margin:10px 0 5px">מפתח Geoapify (לא חובה)</label>
+      <input id="geoapifyKey" type="password" autocomplete="off" placeholder="Geoapify API key" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:10px;direction:ltr" />
+      <div style="margin-top:5px;font-size:12px">עם מפתח: Geoapify ראשי ו-Overpass גיבוי. ללא מפתח: Overpass בלבד. מפתח המוזן באתר סטטי חשוף בדפדפן; מומלץ להגביל אותו לדומיין באתר Geoapify.</div>
+      <pre id="searchDiagnostics" style="white-space:pre-wrap;direction:rtl;text-align:right;background:#edf5f7;padding:10px;border-radius:10px;font-size:12px;max-height:190px;overflow:auto">טרם בוצע חיפוש.</pre>
+    </details>
     <div id="poiStatus" class="poi-info" role="status">הפעל מעקב GPS ולאחר מכן לחץ על גילוי מקומות.</div>
   </section>
 
@@ -604,6 +613,52 @@
     return `[out:json][timeout:15];(${parts.join('')});out center 180;`;
   }
 
+  const geoapifyCategoryMap = {
+    all:'catering,commercial,tourism,entertainment,culture',
+    food:'catering', shopping:'commercial',
+    history:'tourism.sights,culture', tourism:'tourism,entertainment'
+  };
+  const diagnostics = [];
+  function logSearch(message) {
+    diagnostics.push(message);
+    $('searchDiagnostics').textContent = diagnostics.join('\n');
+  }
+  function normalizeOverpass(data, lat, lon) {
+    return (data.elements || []).map(el => {
+      const plat = el.lat ?? el.center?.lat;
+      const plon = el.lon ?? el.center?.lon;
+      const name = el.tags?.['name:he'] || el.tags?.name || el.tags?.['name:en'];
+      if (!name || plat == null || plon == null) return null;
+      return {id:el.type+'/'+el.id,name,lat:plat,lon:plon,
+        distance:Math.round(distanceMeters(lat,lon,plat,plon)),
+        kind:el.tags?.amenity || el.tags?.tourism || el.tags?.historic || el.tags?.shop || 'מקום',
+        tags:el.tags || {}};
+    }).filter(Boolean);
+  }
+  function normalizeGeoapify(data, lat, lon) {
+    return (data.features || []).map(feature => {
+      const p=feature.properties || {};
+      const coords=feature.geometry?.coordinates;
+      if (!coords || !p.name) return null;
+      const tags={};
+      const cats=p.categories || [];
+      if(cats.some(c=>c.startsWith('catering'))) tags.amenity='cafe';
+      else if(cats.some(c=>c.startsWith('commercial'))) tags.shop='shop';
+      else if(cats.some(c=>c.startsWith('culture'))) tags.historic='yes';
+      else tags.tourism='attraction';
+      return {id:p.place_id || p.name,name:p.name,lat:coords[1],lon:coords[0],
+        distance:Math.round(distanceMeters(lat,lon,coords[1],coords[0])),
+        kind:cats[0] || 'מקום',tags};
+    }).filter(Boolean);
+  }
+  async function fetchWithTimeout(url, options, parentSignal, ms) {
+    const attempt=new AbortController();
+    const onAbort=()=>attempt.abort();
+    parentSignal.addEventListener('abort',onAbort,{once:true});
+    const timer=setTimeout(()=>attempt.abort(),ms);
+    try {return await fetch(url,{...options,signal:attempt.signal});}
+    finally {clearTimeout(timer);parentSignal.removeEventListener('abort',onAbort);}
+  }
   async function discoverPlaces() {
     if (!currentPosition) {
       $('poiStatus').textContent = 'יש להפעיל GPS ולהמתין לקבלת מיקום לפני החיפוש.';
@@ -622,60 +677,68 @@
     const category = $('poiCategory').value;
     const radius = Number($('poiRadius').value);
     const {lat, lon} = currentPosition;
-    const query = buildOverpassQuery(category, radius, lat, lon);
+    const key = $('geoapifyKey').value.trim();
+    diagnostics.length=0;
+    logSearch(`מיקום: ${lat.toFixed(5)}, ${lon.toFixed(5)} | רדיוס: ${radius} מ׳ | קטגוריה: ${category}`);
+    let places=[];
+    let provider='';
     try {
-      const endpoints = [
-        'https://overpass.private.coffee/api/interpreter',
-        'https://overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter'
-      ];
-      let data = null;
-      let lastError = null;
-      const ordered = [endpoints[preferredEndpoint - 1], ...endpoints.filter((_,i) => i !== preferredEndpoint - 1)];
-      for (const endpoint of ordered) {
-        if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
-        const attempt = new AbortController();
-        const abortAttempt = () => attempt.abort();
-        controller.signal.addEventListener('abort', abortAttempt, {once:true});
-        const timeout = setTimeout(() => attempt.abort(), 5500);
+      if(key) {
+        const start=performance.now();
         try {
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            body: 'data=' + encodeURIComponent(query),
-            headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-            signal: attempt.signal
-          });
-          if (!response.ok) throw new Error('HTTP ' + response.status);
-          data = await response.json();
-          preferredEndpoint = endpoints.indexOf(endpoint) + 1;
-          clearTimeout(timeout);
-          controller.signal.removeEventListener('abort', abortAttempt);
-          break;
-        } catch (error) {
-          clearTimeout(timeout);
-          controller.signal.removeEventListener('abort', abortAttempt);
-          lastError = error;
-          if (controller.signal.aborted) throw error;
-          console.warn('Overpass endpoint failed:', endpoint, error);
-          $('poiStatus').textContent = 'שרת החיפוש לא הגיב. מנסה שרת חלופי...';
+          $('poiStatus').textContent='מחפש באמצעות Geoapify...';
+          const params=new URLSearchParams({categories:geoapifyCategoryMap[category] || geoapifyCategoryMap.all,
+            filter:`circle:${lon},${lat},${radius}`,bias:`proximity:${lon},${lat}`,limit:'100',apiKey:key});
+          const response=await fetchWithTimeout('https://api.geoapify.com/v2/places?'+params.toString(),{},controller.signal,8000);
+          if(!response.ok) throw new Error('HTTP '+response.status);
+          places=normalizeGeoapify(await response.json(),lat,lon);
+          provider='Geoapify';
+          logSearch(`Geoapify: ${places.length} תוצאות, ${((performance.now()-start)/1000).toFixed(1)} שניות`);
+        } catch(error) {
+          if(controller.signal.aborted) throw error;
+          logSearch('Geoapify נכשל: '+(error.name==='AbortError'?'חריגה מזמן המתנה':error.message));
         }
+      } else logSearch('לא הוגדר מפתח Geoapify — משתמש ב-Overpass');
+      if(!provider) {
+        const query=buildOverpassQuery(category,radius,lat,lon);
+        const endpoints=[
+          'https://overpass.private.coffee/api/interpreter',
+          'https://overpass-api.de/api/interpreter',
+          'https://overpass.kumi.systems/api/interpreter'
+        ];
+        const ordered=[endpoints[preferredEndpoint-1] || endpoints[0],...endpoints.filter((_,i)=>i!==preferredEndpoint-1)];
+        let lastError=null;
+        for(const endpoint of ordered) {
+          if(controller.signal.aborted) throw new DOMException('Aborted','AbortError');
+          const start=performance.now();
+          try {
+            $('poiStatus').textContent='מחפש באמצעות Overpass...';
+            const response=await fetchWithTimeout(endpoint,{
+              method:'POST',body:'data='+encodeURIComponent(query),
+              headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}
+            },controller.signal,7000);
+            if(!response.ok) throw new Error('HTTP '+response.status);
+            places=normalizeOverpass(await response.json(),lat,lon);
+            provider='Overpass';
+            preferredEndpoint=endpoints.indexOf(endpoint)+1;
+            logSearch(`${new URL(endpoint).hostname}: ${places.length} תוצאות, ${((performance.now()-start)/1000).toFixed(1)} שניות`);
+            break;
+          } catch(error) {
+            if(controller.signal.aborted) throw error;
+            lastError=error;
+            logSearch(`${new URL(endpoint).hostname}: ${error.name==='AbortError'?'timeout':error.message} (${((performance.now()-start)/1000).toFixed(1)} שניות)`);
+          }
+        }
+        if(!provider) throw lastError || new Error('אין תגובה משרתי החיפוש');
       }
-      if (!data) throw lastError || new Error('No search response');
-      if (poiRequest !== controller) return;
-      const seen = new Set();
-      const places = (data.elements || []).map(el => {
-        const plat = el.lat ?? el.center?.lat;
-        const plon = el.lon ?? el.center?.lon;
-        const name = el.tags?.['name:he'] || el.tags?.name || el.tags?.['name:en'];
-        if (!name || plat == null || plon == null) return null;
-        const distance = Math.round(distanceMeters(lat, lon, plat, plon));
-        return { id: el.type + '/' + el.id, name, lat:plat, lon:plon, distance,
-          kind: el.tags?.amenity || el.tags?.tourism || el.tags?.historic || el.tags?.shop || 'מקום', tags:el.tags || {} };
-      }).filter(Boolean).filter(place => {
-        const key = place.name.toLowerCase() + ':' + Math.round(place.lat * 10000) + ':' + Math.round(place.lon * 10000);
-        if (seen.has(key) || place.distance > radius) return false;
-        seen.add(key); return true;
-      }).sort((a,b) => a.distance - b.distance).slice(0,60);
+      if(poiRequest!==controller) return;
+      const seen=new Set();
+      places=places.filter(place=>{
+        const dedup=place.name.trim().toLowerCase()+':'+Math.round(place.lat*10000)+':'+Math.round(place.lon*10000);
+        if(seen.has(dedup) || place.distance>radius) return false;
+        seen.add(dedup);return true;
+      }).sort((a,b)=>a.distance-b.distance).slice(0,60);
+      logSearch(`מוצגות ${places.length} תוצאות במפה | מקור: ${provider}`);
       if (!poiLayer && map) poiLayer = L.layerGroup().addTo(map);
       const pinInfo = place => {
         if (place.tags.shop) return {emoji:'🛍️', color:'#8057bb'};
@@ -695,11 +758,33 @@
         const popup = document.createElement('div');
         const title = document.createElement('div'); title.className='poi-popup-title'; title.textContent=place.name;
         const meta = document.createElement('div'); meta.className='poi-popup-meta'; meta.textContent=`${place.distance} מטר · ${place.kind}`;
-        const details = document.createElement('button'); details.type='button'; details.textContent='פרטים על המקום';
+        const summary = document.createElement('div'); summary.className='poi-popup-summary';
+        summary.textContent='טוען הסבר קצר על המקום...';
+        const source = document.createElement('div'); source.className='poi-popup-source';
+        const details = document.createElement('button'); details.type='button'; details.textContent='מידע נוסף';
         details.addEventListener('click', () => { showPlace(place); map.closePopup(); });
-        popup.append(title,meta,details);
-        markerPoi.bindPopup(popup, {maxWidth:260});
+        popup.append(title,meta,summary,source,details);
+        markerPoi.bindPopup(popup, {maxWidth:310, minWidth:210});
         markerPoi.on('click', () => pauseFollowing());
+        markerPoi.on('popupopen', async () => {
+          const popupNode = markerPoi.getPopup();
+          const token = ++popupRequestToken;
+          const fallback = place.tags['description:he'] || place.tags.description ||
+            `זהו מקום מסוג ${place.kind}, במרחק כ-${place.distance} מטר מהמיקום שלך.`;
+          summary.textContent = 'מחפש הסבר קצר על המקום...';
+          source.textContent = '';
+          try {
+            const info = await getShortPlaceInfo(place);
+            if (token !== popupRequestToken || !popupNode.isOpen()) return;
+            summary.textContent = info?.text || fallback;
+            source.textContent = info ? 'מקור: ויקיפדיה' : 'מידע: OpenStreetMap';
+          } catch (error) {
+            if (token !== popupRequestToken || !popupNode.isOpen()) return;
+            summary.textContent = fallback;
+            source.textContent = 'מידע: OpenStreetMap';
+          }
+          popupNode.update();
+        });
       }
       if (map && places.length) {
         pauseFollowing();
@@ -707,10 +792,11 @@
       }
       $('mapResults').textContent = `נמצאו ${places.length} מקומות`;
       $('mapResults').hidden = false;
-      $('poiStatus').textContent = places.length ? `נמצאו ${places.length} מקומות — מוצגים על המפה. לחיצה על סמל תציג פרטים.` : 'לא נמצאו מקומות מתאימים בטווח שנבחר.';
+      $('poiStatus').textContent = places.length ? `נמצאו ${places.length} מקומות (${provider}) — מוצגים על המפה. לחיצה על סמל תציג הסבר קצר על המקום.` : `החיפוש ב-${provider} הצליח, אך לא נמצאו מקומות מתאימים בטווח שנבחר.`;
     } catch(error) {
       if (error.name !== 'AbortError') {
         console.warn('POI search failed', error);
+        logSearch('שגיאה סופית: '+(error.message || error.name));
         $('mapResults').hidden = true;
         $('poiStatus').textContent = 'חיפוש המקומות נכשל בכל שרתי החיפוש. בדוק חיבור לאינטרנט ונסה שוב. פרטים: ' + (error.message || 'שגיאת תקשורת');
       }
@@ -736,6 +822,51 @@
     const res = await fetch(url, {signal});
     if (!res.ok) throw new Error('Wikipedia HTTP '+res.status);
     return res.json();
+  }
+
+  // A brief description appears inside the map popup. Cache results to avoid
+  // repeated requests when reopening the same marker.
+  const shortInfoCache = new Map();
+  let popupRequestToken = 0;
+  function normalizedPlaceName(value) {
+    return (value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  }
+  function shortDescription(text) {
+    const clean = (text || '').replace(/\s+/g,' ').trim();
+    if (clean.length <= 230) return clean;
+    const chunk = clean.slice(0,230);
+    const stop = Math.max(chunk.lastIndexOf('. '),chunk.lastIndexOf('! '),chunk.lastIndexOf('? '));
+    return (stop > 85 ? chunk.slice(0,stop+1) : chunk.slice(0,chunk.lastIndexOf(' ') > 100 ? chunk.lastIndexOf(' ') : 230)) + '…';
+  }
+  async function getShortPlaceInfo(place) {
+    const key = String(place.id) + ':' + place.name;
+    if (shortInfoCache.has(key)) return shortInfoCache.get(key);
+    const promise = (async () => {
+      const direct = place.tags.wikipedia || (place.tags['wikipedia:he'] ? 'he:'+place.tags['wikipedia:he'] : null);
+      let lang = 'he', title = null;
+      if (direct && direct.includes(':')) {
+        const index = direct.indexOf(':');
+        const requestedLang = direct.slice(0,index).toLowerCase();
+        if (['he','en'].includes(requestedLang)) { lang=requestedLang; title=direct.slice(index+1); }
+      }
+      async function lookup(language, exactTitle) {
+        const params = {prop:'extracts',exintro:'1',explaintext:'1',exchars:'450'};
+        if (exactTitle) Object.assign(params,{titles:exactTitle,redirects:'1'});
+        else Object.assign(params,{generator:'search',gsrsearch:place.name,gsrlimit:'1'});
+        const data = await wikiAPI(language,params);
+        const page = Object.values(data.query?.pages || {})[0];
+        if (!page?.extract || page.missing !== undefined) return null;
+        const pageName = normalizedPlaceName(page.title);
+        const requested = normalizedPlaceName(place.name);
+        if (!exactTitle && (!requested || !pageName || !(pageName.includes(requested) || requested.includes(pageName)))) return null;
+        return {text:shortDescription(page.extract)};
+      }
+      let result = await lookup(lang,title);
+      if (!result && lang==='he' && !title) result = await lookup('en',null);
+      return result;
+    })();
+    shortInfoCache.set(key,promise);
+    try {return await promise;} catch(error) {shortInfoCache.delete(key);throw error;}
   }
 
   async function showPlace(place) {
