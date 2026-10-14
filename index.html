@@ -4,7 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK - V1.5.1</title>
+  <title>SIDEWALK — Discover Places Around You (V1.6)</title>
+  <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
+  <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SIDEWALK">
+  <meta name="theme-color" content="#062c46">
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -189,15 +194,53 @@
         grid-template-columns: 1fr 1fr;
       }
     }
+
+    /* SIDEWALK V1.6: visual design only, based on approved branding */
+    :root { --navy:#082d48; --teal:#00b9bb; --sea:#0a8499; --mist:#e9f8fa; }
+    body { background:linear-gradient(180deg,#d9f4f7 0,#f2f8fb 270px,#f4f8fa 100%); color:var(--navy); padding:0 12px 28px; }
+    .app { max-width:680px; }
+    .card { border-radius:22px; padding:17px; margin-bottom:13px; border:1px solid rgba(9,75,100,.07); box-shadow:0 5px 22px rgba(5,48,73,.075); }
+    .hero { background:linear-gradient(125deg,#082b47,#075c76 75%,#0a9caa); color:#fff; margin:0 -12px 14px; padding:24px 22px 22px; border-radius:0 0 30px 30px; border:0; overflow:visible; }
+    .hero-top { display:flex; align-items:center; gap:14px; direction:ltr; justify-content:center; }
+    .hero-logo { width:76px; height:76px; object-fit:contain; filter:drop-shadow(0 4px 9px rgba(0,0,0,.18)); }
+    .hero-copy { text-align:left; }
+    .hero h1 { text-align:left; font-size:31px; letter-spacing:1px; font-weight:900; color:#fff; line-height:1.1; }
+    .hero h1 span { color:#49e1db; }
+    .hero .sub { color:#bcecf0; text-align:left; margin:6px 0 0; font-size:12px; letter-spacing:1.2px; font-weight:700; }
+    .hero .status { margin-top:18px; background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.2); font-size:13px; font-weight:600; }
+    .hero .status.ok { background:rgba(0,200,159,.23); }
+    .hero .status.err { background:rgba(255,90,90,.22); }
+    .hero .status.loading { background:rgba(255,255,255,.16); }
+    h2 { font-size:18px; color:var(--navy); }
+    .section-eyebrow { color:var(--sea); font-size:11px; letter-spacing:.7px; font-weight:800; margin:0 0 6px; }
+    .buttons button { font-size:14px; padding:12px; }
+    #startBtn { background:linear-gradient(100deg,#00aeb5,#0d879c); color:white; }
+    #stopBtn { background:rgba(255,255,255,.93); color:var(--navy); }
+    .row { background:#f1f9fb; border:1px solid #e2f0f4; }
+    .value.address { font-size:16px; }
+    .discover-controls select { border-color:#cce7ed; background:#f7fcfd; color:var(--navy); }
+    .discover-btn { background:linear-gradient(100deg,#00b9bb,#087f99); box-shadow:0 5px 12px rgba(0,153,164,.16); }
+    .poi-item { background:#f7fbfc; border-color:#e1edf1; border-right:4px solid #21bec0; transition:background .15s; }
+    .poi-item:active { background:#e2f8f8; }
+    .poi-item strong { color:var(--navy); }
+    .follow-btn { background:#d9f8f4; color:#087f83; font-size:12px; padding:9px; }
+    .follow-btn.paused { background:#eaf1f5; color:#335569; }
+    #map { height:min(56vh,480px); min-height:340px; border:1px solid #d9e9ed; }
+    .place-details { background:#f7fcfd; border-color:#d6eef0; }
+    .place-details a { color:#008c96; }
+    .place-close { color:var(--navy); }
+    .poi-info,.mapnote { font-size:12px; }
+    .version-tag { font-size:10px; color:#bcecf0; text-align:center; margin:10px 0 0; }
+    .leaflet-container { font-family:Arial,Helvetica,sans-serif; }
+    @media(min-width:680px) { .hero { border-radius:0 0 30px 30px; } }
   </style>
 </head>
 
 <body>
 <main class="app">
 
-  <section class="card">
-    <h1>🚶 SIDEWALK</h1>
-    <div class="sub">V1.5.1 — מגלים את העיר</div>
+  <section class="card hero">
+    <div class="hero-top"><img class="hero-logo" src="sidewalk-app-icon.png" alt="SIDEWALK logo"><div class="hero-copy"><h1>SIDE<span>WALK</span></h1><div class="sub">DISCOVER PLACES AROUND YOU</div></div></div>
 
     <div id="status" class="status">ממתין להפעלת המיקום</div>
 
@@ -205,10 +248,11 @@
       <button id="startBtn" type="button">▶ התחל מעקב</button>
       <button id="stopBtn" type="button" disabled>■ עצור מעקב</button>
     </div>
+    <div class="version-tag">V1.6 · SIDEWALK</div>
   </section>
 
   <section class="card">
-    <h2>🏠 כתובת</h2>
+    <h2>📍 המיקום שלי</h2>
 
     <div class="grid">
       <div class="row wide">
@@ -429,7 +473,7 @@
       const point = [lat, lon];
 
       if (!marker) {
-        marker = L.marker(point)
+        marker = L.marker(point, {icon: L.icon({iconUrl:'sidewalk-gps-marker.png', iconSize:[44,50], iconAnchor:[22,49], popupAnchor:[0,-44]})})
           .addTo(map)
           .bindPopup('המיקום הנוכחי');
 
