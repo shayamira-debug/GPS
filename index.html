@@ -232,6 +232,11 @@
     .poi-info,.mapnote { font-size:12px; }
     .version-tag { font-size:10px; color:#bcecf0; text-align:center; margin:10px 0 0; }
     .leaflet-container { font-family:Arial,Helvetica,sans-serif; }
+    .gps-control { display:flex; justify-content:center; margin-top:10px; }
+    .gps-toggle { display:flex; align-items:center; justify-content:center; gap:10px; min-width:164px; padding:12px 24px; border-radius:999px; color:white; background:linear-gradient(105deg,#00b9bb,#087f99); box-shadow:0 5px 16px rgba(0,185,187,.24); font-size:16px; direction:ltr; }
+    .gps-toggle.off { background:#dce5eb; color:#24465a; box-shadow:none; }
+    .gps-symbol { font-size:27px; line-height:20px; font-weight:bold; }
+    .gps-toggle:focus-visible { outline:3px solid #80e8e4; outline-offset:3px; }
     @media(min-width:680px) { .hero { border-radius:0 0 30px 30px; } }
   </style>
 </head>
@@ -244,11 +249,12 @@
 
     <div id="status" class="status">ממתין להפעלת המיקום</div>
 
-    <div class="buttons">
-      <button id="startBtn" type="button">▶ התחל מעקב</button>
-      <button id="stopBtn" type="button" disabled>■ עצור מעקב</button>
+    <div class="gps-control">
+      <button id="gpsToggleBtn" class="gps-toggle off" type="button" aria-pressed="false" aria-label="הפעל מעקב GPS">
+        <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
+      </button>
     </div>
-    <div class="version-tag">V1.6 · SIDEWALK</div>
+    <div class="version-tag">V1.6.2 · SIDEWALK</div>
   </section>
 
   <section class="card">
@@ -523,6 +529,15 @@
     );
   }
 
+  function updateGpsToggle() {
+    const active = watchId !== null;
+    const button = $('gpsToggleBtn');
+    button.classList.toggle('off', !active);
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-label', active ? 'עצור מעקב GPS' : 'הפעל מעקב GPS');
+    $('gpsToggleText').textContent = active ? 'GPS ON' : 'GPS OFF';
+  }
+
   function startTracking() {
     if (!navigator.geolocation) {
       setStatus(
@@ -542,9 +557,6 @@
 
     setStatus('מפעיל GPS...', 'loading');
 
-    $('startBtn').disabled = true;
-    $('stopBtn').disabled = false;
-
     watchId = navigator.geolocation.watchPosition(
       updatePosition,
       (error) => {
@@ -560,6 +572,7 @@
         timeout: 20000
       }
     );
+    updateGpsToggle();
   }
 
   function stopTracking() {
@@ -568,25 +581,24 @@
       watchId = null;
     }
 
-    $('startBtn').disabled = false;
-    $('stopBtn').disabled = true;
-
+    updateGpsToggle();
     setStatus('המעקב נעצר');
   }
 
+  // Each category is a UNION of independent OSM tag filters, not an intersection.
   const poiFilters = {
-    all: '["amenity"~"^(restaurant|cafe|fast_food)$"] ["shop"] ["tourism"~"^(attraction|museum|gallery|viewpoint)$"] ["historic"]',
-    food: '["amenity"~"^(restaurant|cafe|fast_food)$"]',
-    shopping: '["shop"]',
-    history: '["historic"] ["tourism"~"^(museum|gallery)$"]',
-    tourism: '["tourism"~"^(attraction|museum|gallery|viewpoint)$"]'
+    all: ['["amenity"~"^(restaurant|cafe|fast_food|bar|pub)$"]', '["shop"]', '["tourism"~"^(attraction|museum|gallery|viewpoint|artwork|information)$"]', '["historic"]'],
+    food: ['["amenity"~"^(restaurant|cafe|fast_food|bar|pub)$"]'],
+    shopping: ['["shop"]'],
+    history: ['["historic"]', '["tourism"~"^(museum|gallery)$"]'],
+    tourism: ['["tourism"~"^(attraction|museum|gallery|viewpoint|artwork|information)$"]']
   };
 
   function buildOverpassQuery(category, radius, lat, lon) {
-    const clauses = poiFilters[category].match(/\[[^\]]+\]/g) || [];
-    const parts = clauses.flatMap(filter => ['node', 'way', 'relation'].map(type =>
+    const filters = poiFilters[category] || poiFilters.all;
+    const parts = filters.flatMap(filter => ['node', 'way', 'relation'].map(type =>
       `${type}(around:${radius},${lat},${lon})${filter};`));
-    return `[out:json][timeout:20];(${parts.join('')});out center 120;`;
+    return `[out:json][timeout:15];(${parts.join('')});out center 180;`;
   }
 
   async function discoverPlaces() {
@@ -609,9 +621,9 @@
     const query = buildOverpassQuery(category, radius, lat, lon);
     try {
       const endpoints = [
-        'https://overpass.kumi.systems/api/interpreter',
         'https://overpass.private.coffee/api/interpreter',
-        'https://overpass-api.de/api/interpreter'
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter'
       ];
       let data = null;
       let lastError = null;
@@ -621,7 +633,7 @@
         const attempt = new AbortController();
         const abortAttempt = () => attempt.abort();
         controller.signal.addEventListener('abort', abortAttempt, {once:true});
-        const timeout = setTimeout(() => attempt.abort(), 6500);
+        const timeout = setTimeout(() => attempt.abort(), 5500);
         try {
           const response = await fetch(endpoint, {
             method: 'POST',
@@ -777,8 +789,9 @@
   $('closePlace').addEventListener('click', closePlace);
 
   $('discoverBtn').addEventListener('click', discoverPlaces);
-  $('startBtn').addEventListener('click', startTracking);
-  $('stopBtn').addEventListener('click', stopTracking);
+  $('gpsToggleBtn').addEventListener('click', () => {
+    if (watchId === null) startTracking(); else stopTracking();
+  });
 
   window.addEventListener('load', () => {
     initMap();
