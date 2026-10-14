@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK - V1.3.2</title>
+  <title>SIDEWALK - V1.5</title>
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -180,6 +180,9 @@
     .place-details .source { font-size:12px; color:#64748b; }
     .place-close { float:left; padding:5px 10px; font-size:14px; background:#e2e8f0; }
 
+    .map-toolbar { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+    .follow-btn { background:#d1fae5; color:#065f46; padding:10px 12px; font-size:14px; }
+    .follow-btn.paused { background:#e2e8f0; color:#334155; }
     .poi-info { color:#475569; font-size:13px; margin-top:10px; line-height:1.5; }
     @media (min-width: 500px) {
       .grid {
@@ -194,7 +197,7 @@
 
   <section class="card">
     <h1>🚶 SIDEWALK</h1>
-    <div class="sub">V1.4 — סיפורים על מקומות</div>
+    <div class="sub">V1.5 — מגלים את העיר</div>
 
     <div id="status" class="status">ממתין להפעלת המיקום</div>
 
@@ -239,7 +242,7 @@
 
   <!-- המפה מופיעה לפני רשימת המקומות -->
   <section class="card">
-    <h2>🗺️ מפה חיה</h2>
+    <div class="map-toolbar"><h2 style="margin:0">🗺️ מפה חיה</h2><button id="followBtn" class="follow-btn" type="button">◎ עקוב אחריי: פעיל</button></div>
 
     <div id="map"></div>
 
@@ -275,6 +278,11 @@
   let accuracyCircle = null;
   let watchId = null;
   let firstFix = true;
+  let followLocation = true;
+  let programmaticMove = false;
+  let lastAddressAttempt = 0;
+  let addressBusy = false;
+  let preferredEndpoint = 1;
   let currentPosition = null;
   let poiLayer = null;
   let poiRequest = null;
@@ -312,13 +320,15 @@
     }).setView([31.8, 34.9], 8);
 
     L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
       {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
       }
     ).addTo(map);
 
+    map.on('dragstart', () => pauseFollowing());
+    map.on('zoomstart', () => { if (!programmaticMove) pauseFollowing(); });
     // חשוב במיוחד במובייל כדי ש-Leaflet יחשב נכון את גודל המפה.
     setTimeout(() => {
       if (map) map.invalidateSize();
@@ -340,77 +350,56 @@
     return 2 * R * Math.asin(Math.sqrt(a));
   }
 
+  function pauseFollowing() {
+    if (!followLocation) return;
+    followLocation = false;
+    updateFollowButton();
+  }
+
+  function updateFollowButton() {
+    const btn = $('followBtn');
+    btn.textContent = followLocation ? '◎ עקוב אחריי: פעיל' : '◎ חזור למיקום שלי';
+    btn.classList.toggle('paused', !followLocation);
+  }
+
+  function centerOnUser(animate = true) {
+    if (!map || !currentPosition) return;
+    programmaticMove = true;
+    map.panTo([currentPosition.lat, currentPosition.lon], {animate, duration:0.45});
+    setTimeout(() => { programmaticMove = false; }, 700);
+  }
+
   async function reverseGeocode(lat, lon) {
     const now = Date.now();
     const moved = distanceMeters(lat, lon, lastGeocodeLat, lastGeocodeLon);
-
-    // לא שולחים בקשת כתובת על כל עדכון GPS.
-    if (moved < 25 && now - lastGeocodeTime < 30000) {
-      return;
-    }
-
-    lastGeocodeLat = lat;
-    lastGeocodeLon = lon;
-    lastGeocodeTime = now;
-
+    if (addressBusy || (moved < 40 && now - lastAddressAttempt < 45000)) return;
+    lastAddressAttempt = now;
+    addressBusy = true;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
     try {
-      const url =
-        'https://nominatim.openstreetmap.org/reverse' +
-        '?format=jsonv2' +
-        '&lat=' + encodeURIComponent(lat) +
-        '&lon=' + encodeURIComponent(lon) +
-        '&zoom=18' +
-        '&addressdetails=1' +
-        '&accept-language=he';
-
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('HTTP ' + response.status);
-      }
-
+      const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2' +
+        '&lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon) +
+        '&zoom=18&addressdetails=1&accept-language=he';
+      const response = await fetch(url, {signal:controller.signal, headers:{Accept:'application/json'}});
+      if (!response.ok) throw new Error('HTTP ' + response.status);
       const data = await response.json();
       const a = data.address || {};
-
-      const city =
-        a.city ||
-        a.town ||
-        a.village ||
-        a.municipality ||
-        a.locality ||
-        a.county;
-
-      $('fullAddress').textContent = valueOrNA([a.road || a.pedestrian, a.house_number, city].filter(Boolean).join(' ') || data.display_name);
-      $('country').textContent = valueOrNA(a.country);
-      $('state').textContent = valueOrNA(a.state || a.region);
-      $('city').textContent = valueOrNA(city);
-      $('neighbourhood').textContent = valueOrNA(
-        a.neighbourhood ||
-        a.suburb ||
-        a.quarter ||
-        a.city_district
-      );
-      $('road').textContent = valueOrNA(
-        a.road ||
-        a.pedestrian ||
-        a.residential ||
-        a.footway ||
-        a.path
-      );
-      $('house').textContent = valueOrNA(a.house_number);
-      $('postcode').textContent = valueOrNA(a.postcode);
-
+      const city = a.city || a.town || a.village || a.municipality || a.locality || a.county || '';
+      const street = a.road || a.pedestrian || a.residential || a.footway || '';
+      const line = [street, a.house_number, city].filter(Boolean).join(' ').trim();
+      $('fullAddress').textContent = line || data.display_name || 'כתובת לא זמינה';
+      $('country').textContent = a.country || 'לא זמין';
+      lastGeocodeLat = lat;
+      lastGeocodeLon = lon;
     } catch (error) {
       console.warn('Reverse geocoding error:', error);
-      $('fullAddress').textContent = 'הכתובת אינה זמינה כרגע';
-      $('country').textContent = '—';
-      // ניתן לנסות שוב לאחר 30 שניות גם ללא שינוי מיקום.
-      lastGeocodeLat = null;
-      lastGeocodeLon = null;
+      if (!$('fullAddress').textContent || $('fullAddress').textContent === '—') {
+        $('fullAddress').textContent = 'לא ניתן לטעון כתובת כרגע';
+      }
+    } finally {
+      clearTimeout(timer);
+      addressBusy = false;
     }
   }
 
@@ -456,12 +445,16 @@
       }
 
       if (firstFix) {
+        programmaticMove = true;
         map.setView(point, 17);
+        setTimeout(() => { programmaticMove = false; }, 700);
         firstFix = false;
 
         setTimeout(() => {
           map.invalidateSize();
         }, 150);
+      } else if (followLocation && map.distance(map.getCenter(), point) > 12) {
+        centerOnUser();
       }
     }
 
@@ -500,6 +493,8 @@
     initMap();
 
     firstFix = true;
+    followLocation = true;
+    updateFollowButton();
 
     setStatus('מפעיל GPS...', 'loading');
 
@@ -570,18 +565,19 @@
     const query = buildOverpassQuery(category, radius, lat, lon);
     try {
       const endpoints = [
-        'https://overpass.private.coffee/api/interpreter',
         'https://overpass.kumi.systems/api/interpreter',
+        'https://overpass.private.coffee/api/interpreter',
         'https://overpass-api.de/api/interpreter'
       ];
       let data = null;
       let lastError = null;
-      for (const endpoint of endpoints) {
+      const ordered = [endpoints[preferredEndpoint - 1], ...endpoints.filter((_,i) => i !== preferredEndpoint - 1)];
+      for (const endpoint of ordered) {
         if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
         const attempt = new AbortController();
         const abortAttempt = () => attempt.abort();
         controller.signal.addEventListener('abort', abortAttempt, {once:true});
-        const timeout = setTimeout(() => attempt.abort(), 12000);
+        const timeout = setTimeout(() => attempt.abort(), 6500);
         try {
           const response = await fetch(endpoint, {
             method: 'POST',
@@ -591,6 +587,7 @@
           });
           if (!response.ok) throw new Error('HTTP ' + response.status);
           data = await response.json();
+          preferredEndpoint = endpoints.indexOf(endpoint) + 1;
           clearTimeout(timeout);
           controller.signal.removeEventListener('abort', abortAttempt);
           break;
@@ -632,7 +629,7 @@
         }).addTo(poiLayer).bindPopup(document.createTextNode(place.name)) : null;
         markerPoi?.on('click', () => showPlace(place));
         button.addEventListener('click', () => {
-          if (map) { map.setView([place.lat,place.lon], 17); markerPoi?.openPopup(); }
+          if (map) { pauseFollowing(); map.setView([place.lat,place.lon], 17); markerPoi?.openPopup(); }
           showPlace(place);
         });
         list.appendChild(button);
@@ -728,6 +725,11 @@
       if (detailsRequest === controller) detailsRequest = null;
     }
   }
+  $('followBtn').addEventListener('click', () => {
+    followLocation = true;
+    updateFollowButton();
+    centerOnUser();
+  });
   $('closePlace').addEventListener('click', closePlace);
 
   $('discoverBtn').addEventListener('click', discoverPlaces);
