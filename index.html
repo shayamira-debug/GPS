@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK - V1.5</title>
+  <title>SIDEWALK - V1.5.1</title>
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -197,7 +197,7 @@
 
   <section class="card">
     <h1>🚶 SIDEWALK</h1>
-    <div class="sub">V1.5 — מגלים את העיר</div>
+    <div class="sub">V1.5.1 — מגלים את העיר</div>
 
     <div id="status" class="status">ממתין להפעלת המיקום</div>
 
@@ -320,10 +320,10 @@
     }).setView([31.8, 34.9], 8);
 
     L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        attribution: '&copy; OpenStreetMap contributors'
       }
     ).addTo(map);
 
