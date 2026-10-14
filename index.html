@@ -263,7 +263,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V1.9 · SIDEWALK</div>
+    <div class="version-tag">V1.9.1 · SIDEWALK</div>
   </section>
 
   <section class="card">
@@ -339,6 +339,8 @@
   let marker = null;
   let accuracyCircle = null;
   let watchId = null;
+  let gpsState = "off"; // off | requesting | on
+  let gpsAttempt = 0;
   let firstFix = true;
   let followLocation = true;
   let programmaticMove = false;
@@ -528,73 +530,90 @@
     reverseGeocode(lat, lon);
   }
 
-  function handleGeoError(error) {
-    const messages = {
-      1: 'הרשאת המיקום נדחתה',
-      2: 'המיקום אינו זמין כרגע',
-      3: 'הבקשה למיקום ארכה יותר מדי זמן'
-    };
-
-    setStatus(
-      messages[error.code] || 'שגיאה בקבלת המיקום',
-      'err'
-    );
+  function geoErrorText(error) {
+    if (error && error.code === 1) return 'הגישה למיקום נדחתה. יש לאפשר מיקום בהגדרות Safari עבור האתר, ואז לנסות שוב.';
+    if (error && error.code === 2) return 'המיקום אינו זמין כרגע. נסה לצאת למקום פתוח ולבדוק שוב.';
+    if (error && error.code === 3) return 'קבלת המיקום ארכה זמן רב. נסה שוב; מומלץ לבדוק קליטה והרשאות.';
+    return 'לא ניתן לקבל מיקום. נסה לרענן את הדף ולבדוק הרשאות.';
   }
 
   function updateGpsToggle() {
-    const active = watchId !== null;
     const button = $('gpsToggleBtn');
-    button.classList.toggle('off', !active);
-    button.setAttribute('aria-pressed', String(active));
-    button.setAttribute('aria-label', active ? 'עצור מעקב GPS' : 'הפעל מעקב GPS');
-    $('gpsToggleText').textContent = active ? 'GPS ON' : 'GPS OFF';
+    const on = gpsState === 'on';
+    const requesting = gpsState === 'requesting';
+    button.classList.toggle('off', !on);
+    button.setAttribute('aria-pressed', String(on));
+    button.setAttribute('aria-label', requesting ? 'בטל ניסיון הפעלת GPS' : on ? 'עצור מעקב GPS' : 'הפעל מעקב GPS');
+    $('gpsToggleText').textContent = requesting ? 'GPS...' : on ? 'GPS ON' : 'GPS OFF';
   }
 
-  function startTracking() {
-    if (!navigator.geolocation) {
-      setStatus(
-        'הדפדפן אינו תומך בשירותי מיקום',
-        'err'
-      );
-      return;
-    }
-
-    if (watchId !== null) return;
-
-    initMap();
-
-    firstFix = true;
-    followLocation = true;
-    updateFollowButton();
-
-    setStatus('מפעיל GPS...', 'loading');
-
-    watchId = navigator.geolocation.watchPosition(
-      updatePosition,
-      (error) => {
-        handleGeoError(error);
-
-        if (error.code === 1) {
-          stopTracking();
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 20000
-      }
-    );
-    updateGpsToggle();
-  }
-
-  function stopTracking() {
+  function clearGpsWatch() {
     if (watchId !== null) {
       navigator.geolocation.clearWatch(watchId);
       watchId = null;
     }
+  }
 
+  function stopTracking(message = 'המעקב הופסק', type = '') {
+    gpsAttempt++; // מבטל callbacks של ניסיון קודם
+    clearGpsWatch();
+    gpsState = 'off';
     updateGpsToggle();
-    setStatus('המעקב נעצר');
+    setStatus(message, type);
+  }
+
+  function startTracking() {
+    if (gpsState !== 'off') return;
+    if (!window.isSecureContext) {
+      setStatus('נדרש חיבור HTTPS כדי להפעיל GPS. פתח את כתובת GitHub Pages המאובטחת.', 'err');
+      return;
+    }
+    if (!navigator.geolocation) {
+      setStatus('הדפדפן אינו תומך בשירותי מיקום', 'err');
+      return;
+    }
+    initMap();
+    firstFix = true;
+    followLocation = true;
+    updateFollowButton();
+    const attempt = ++gpsAttempt;
+    gpsState = 'requesting';
+    updateGpsToggle();
+    setStatus('ממתין לאישור מיקום ולקבלת אות GPS...', 'loading');
+
+    // בקשת מיקום ראשונית, נפרדת ממעקב רציף, מאפשרת אבחון ברור של שגיאות.
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        if (attempt !== gpsAttempt) return;
+        updatePosition(position);
+        gpsState = 'on';
+        updateGpsToggle();
+        try {
+          watchId = navigator.geolocation.watchPosition(
+            next => {
+              if (attempt !== gpsAttempt) return;
+              updatePosition(next);
+            },
+            error => {
+              if (attempt !== gpsAttempt) return;
+              if (error.code === 1) {
+                stopTracking(geoErrorText(error), 'err');
+              } else {
+                setStatus(geoErrorText(error) + ' המערכת תמשיך לנסות לעדכן.', 'err');
+              }
+            },
+            { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 }
+          );
+        } catch (error) {
+          stopTracking('לא ניתן להתחיל מעקב רציף: ' + (error.message || 'שגיאה לא ידועה'), 'err');
+        }
+      },
+      error => {
+        if (attempt !== gpsAttempt) return;
+        stopTracking(geoErrorText(error), 'err');
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 25000 }
+    );
   }
 
   // Each category is a UNION of independent OSM tag filters, not an intersection.
@@ -939,7 +958,7 @@
 
   $('discoverBtn').addEventListener('click', discoverPlaces);
   $('gpsToggleBtn').addEventListener('click', () => {
-    if (watchId === null) startTracking(); else stopTracking();
+    if (gpsState === 'off') startTracking(); else stopTracking();
   });
 
   window.addEventListener('load', () => {
