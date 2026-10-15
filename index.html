@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK — Discover Places Around You (V1.9)</title>
+  <title>SIDEWALK — Discover Places Around You (V2.0)</title>
   <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
   <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -181,6 +181,27 @@
     .leaflet-popup-content .poi-popup-summary { margin:10px 0; font-size:13px; line-height:1.6; color:#24465a; white-space:normal; }
     .leaflet-popup-content .poi-popup-source { font-size:10px; color:#758796; margin:4px 0 9px; }
     .leaflet-popup-content button { border:0; border-radius:9px; background:#0d8f98; color:white; padding:8px 12px; font-weight:700; cursor:pointer; }
+
+    /* SIDEWALK V2.0: distinct travel category pins and a mobile-first detail sheet */
+    .travel-pin {width:38px;height:38px;border-radius:50% 50% 50% 9px;transform:rotate(-45deg);background:var(--pin-color);border:3px solid white;box-shadow:0 4px 12px #082b4055;display:grid;place-items:center;}
+    .travel-pin span {transform:rotate(45deg);font-size:19px;line-height:1;}
+    .travel-backdrop {position:fixed;inset:0;background:rgba(8,27,45,.36);z-index:1800;}
+    .travel-sheet {position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,560px);max-height:min(78dvh,700px);overflow:auto;box-sizing:border-box;background:#fff;border-radius:26px 26px 0 0;padding:12px 22px max(22px,env(safe-area-inset-bottom));z-index:1801;box-shadow:0 -12px 45px #09283d35;color:#13364a;text-align:right;}
+    .travel-backdrop[hidden],.travel-sheet[hidden],.sheet-photo[hidden] {display:none;}
+    .sheet-grip {width:46px;height:5px;background:#d9e6e9;border-radius:20px;margin:0 auto 14px;}
+    .sheet-header {display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .sheet-category {font-size:12px;font-weight:800;color:#0c777f;background:#e3f7f7;padding:7px 12px;border-radius:20px;}
+    .sheet-close {border:0;background:#edf3f6;color:#47616e;border-radius:50%;height:36px;width:36px;font-size:16px;cursor:pointer;}
+    .travel-sheet h2 {margin:14px 0 5px;font-size:24px;line-height:1.25;color:#0b3049;}
+    .sheet-distance {font-size:13px;color:#607783;}
+    .sheet-photo {margin-top:14px;border-radius:16px;overflow:hidden;max-height:190px;}
+    .sheet-photo img {display:block;width:100%;height:190px;object-fit:cover;}
+    .sheet-summary {font-size:15px;line-height:1.8;margin:15px 0 8px;color:#315164;white-space:pre-wrap;}
+    .sheet-source {font-size:11px;color:#80919a;min-height:16px;}
+    .sheet-actions {display:flex;gap:10px;margin-top:18px;}
+    .sheet-actions button {border-radius:13px;border:0;padding:13px 12px;font-weight:800;font-size:14px;cursor:pointer;flex:1;}
+    .sheet-primary {background:#0c9ca2;color:#fff;}.sheet-secondary {background:#e8f5f6;color:#0b6770;}
+
     .poi-list { display:grid; gap:7px; margin-top:12px; max-height:280px; overflow:auto; }
     .poi-item { text-align:right; padding:11px; border:1px solid #e2e8f0; background:#f8fafc; border-radius:11px; font-weight:normal; }
     .poi-item strong { display:block; margin-bottom:3px; }
@@ -263,7 +284,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V1.9.1 · SIDEWALK</div>
+    <div class="version-tag">V2.0 · SIDEWALK</div>
   </section>
 
   <section class="card">
@@ -292,7 +313,7 @@
   <section class="card">
     <h2>✨ מה יש סביבי?</h2>
     <div class="discover-controls">
-      <div><label class="label" for="poiCategory">קטגוריה</label><select id="poiCategory"><option value="all">הכל</option><option value="food">🍽️ אוכל וקפה</option><option value="shopping">🛍️ קניות</option><option value="history">🏛️ היסטוריה ותרבות</option><option value="tourism">📸 אטרקציות</option></select></div>
+      <div><label class="label" for="poiCategory">קטגוריה</label><select id="poiCategory"><option value="all">✨ מעניין סביבי</option><option value="food">🍽️ אוכל וקפה</option><option value="history">🏛️ היסטוריה ותרבות</option><option value="tourism">📸 פסלים ואטרקציות</option><option value="nightlife">🍸 ברים ובילויים</option><option value="shopping">🛍️ קניות ושווקים</option><option value="nature">🌳 פארקים ונוף</option></select></div>
       <div><label class="label" for="poiRadius">מרחק</label><select id="poiRadius"><option value="250">250 מטר</option><option value="500" selected>500 מטר</option><option value="1000">1,000 מטר</option></select></div>
     </div>
     <button class="discover-btn" id="discoverBtn" type="button">🔎 גלה מה סביבי</button>
@@ -328,6 +349,16 @@
   </section>
 
   <div id="poiList" hidden></div>
+  <div id="travelBackdrop" class="travel-backdrop" hidden></div>
+  <aside id="travelSheet" class="travel-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="travelTitle" dir="rtl">
+    <div class="sheet-grip"></div>
+    <div class="sheet-header"><span id="travelCategory" class="sheet-category"></span><button id="travelClose" class="sheet-close" type="button" aria-label="סגירה">✕</button></div>
+    <h2 id="travelTitle"></h2><div id="travelDistance" class="sheet-distance"></div>
+    <div id="travelPhoto" class="sheet-photo" hidden></div>
+    <p id="travelSummary" class="sheet-summary" aria-live="polite"></p>
+    <div id="travelSource" class="sheet-source"></div>
+    <div class="sheet-actions"><button id="travelMore" type="button" class="sheet-primary">📖 מידע נוסף</button><button id="travelNavigate" type="button" class="sheet-secondary">➤ ניווט</button></div>
+  </aside>
 
 
 </main>
@@ -616,27 +647,63 @@
     );
   }
 
-  // Each category is a UNION of independent OSM tag filters, not an intersection.
+  // Curated travel discovery filters: avoid generic offices and professional services.
   const poiFilters = {
-    all: ['["amenity"~"^(restaurant|cafe|fast_food|bar|pub)$"]', '["shop"]', '["tourism"~"^(attraction|museum|gallery|viewpoint|artwork|information)$"]', '["historic"]'],
-    food: ['["amenity"~"^(restaurant|cafe|fast_food|bar|pub)$"]'],
-    shopping: ['["shop"]'],
-    history: ['["historic"]', '["tourism"~"^(museum|gallery)$"]'],
-    tourism: ['["tourism"~"^(attraction|museum|gallery|viewpoint|artwork|information)$"]']
+    all: ['["amenity"~"^(restaurant|cafe|fast_food|ice_cream|bar|pub|biergarten|food_court)$"]',
+      '["shop"~"^(bakery|pastry|confectionery|chocolate|coffee|deli|cheese|wine|gift|souvenir|clothes|fashion|shoes|jewelry|books|antiques|art|craft|mall|department_store)$"]',
+      '["tourism"~"^(attraction|museum|gallery|viewpoint|artwork|zoo|aquarium|theme_park)$"]',
+      '["historic"~"^(monument|memorial|castle|ruins|archaeological_site|building|city_gate|fort|manor|church|wayside_shrine|yes)$"]',
+      '["amenity"~"^(marketplace|theatre|arts_centre|fountain)$"]',
+      '["leisure"~"^(park|garden|nature_reserve)$"]'],
+    food: ['["amenity"~"^(restaurant|cafe|fast_food|ice_cream|food_court)$"]', '["shop"~"^(bakery|pastry|confectionery|chocolate|coffee|deli)$"]'],
+    shopping: ['["shop"~"^(gift|souvenir|clothes|fashion|shoes|jewelry|books|antiques|art|craft|mall|department_store|bakery|chocolate|wine)$"]', '["amenity"="marketplace"]'],
+    history: ['["historic"~"^(monument|memorial|castle|ruins|archaeological_site|building|city_gate|fort|manor|church|wayside_shrine|yes)$"]', '["tourism"~"^(museum|gallery)$"]'],
+    tourism: ['["tourism"~"^(attraction|artwork|viewpoint|museum|gallery|zoo|aquarium|theme_park)$"]', '["amenity"="fountain"]', '["historic"~"^(monument|memorial)$"]'],
+    nightlife: ['["amenity"~"^(bar|pub|biergarten|nightclub|theatre|arts_centre)$"]'],
+    nature: ['["leisure"~"^(park|garden|nature_reserve)$"]', '["tourism"="viewpoint"]']
   };
 
   function buildOverpassQuery(category, radius, lat, lon) {
     const filters = poiFilters[category] || poiFilters.all;
     const parts = filters.flatMap(filter => ['node', 'way', 'relation'].map(type =>
       `${type}(around:${radius},${lat},${lon})${filter};`));
-    return `[out:json][timeout:15];(${parts.join('')});out center 180;`;
+    return `[out:json][timeout:15];(${parts.join('')});out center 250;`;
   }
 
   const geoapifyCategoryMap = {
-    all:'catering,commercial,tourism,entertainment,culture',
-    food:'catering', shopping:'commercial',
-    history:'tourism.sights,culture', tourism:'tourism,entertainment'
+    all:'catering,commercial.shopping_mall,commercial.gift_and_souvenir,commercial.clothing,commercial.books,tourism.sights,tourism.attraction,entertainment,culture,leisure.park',
+    food:'catering', shopping:'commercial.shopping_mall,commercial.gift_and_souvenir,commercial.clothing,commercial.books',
+    history:'tourism.sights,culture', tourism:'tourism.sights,tourism.attraction,entertainment',
+    nightlife:'catering.bar,catering.pub,entertainment', nature:'leisure.park,tourism.sights'
   };
+  function classifyPlace(place) {
+    const t=place.tags||{};
+    const a=t.amenity||'', sh=t.shop||'', tr=t.tourism||'', hi=t.historic||'', le=t.leisure||'';
+    if(a==='fountain' || tr==='artwork' && /fountain/i.test(place.name)) return {label:'מזרקה',emoji:'⛲',color:'#1D9EC1',priority:9};
+    if(tr==='artwork' || ['monument','memorial'].includes(hi)) return {label:'פסל ואנדרטה',emoji:'🗿',color:'#4677C5',priority:9};
+    if(hi || ['museum','gallery'].includes(tr)) return {label:'היסטוריה ותרבות',emoji:'🏛️',color:'#4677C5',priority:10};
+    if(['restaurant','fast_food','food_court'].includes(a)) return {label:'מסעדה',emoji:'🍽️',color:'#E9764A',priority:7};
+    if(['cafe','ice_cream'].includes(a) || ['bakery','pastry','confectionery','coffee','chocolate'].includes(sh)) return {label:'קפה ומאפה',emoji:'☕',color:'#996342',priority:7};
+    if(['bar','pub','biergarten','nightclub'].includes(a)) return {label:'בר ובילוי',emoji:'🍸',color:'#9454C4',priority:7};
+    if(a==='marketplace') return {label:'שוק',emoji:'🏪',color:'#D89C39',priority:8};
+    if(sh) return {label:'קניות',emoji:'🛍️',color:'#D35F93',priority:5};
+    if(le) return {label:'פארק וטבע',emoji:'🌳',color:'#2B9970',priority:7};
+    if(tr==='viewpoint') return {label:'תצפית',emoji:'🌄',color:'#2B9970',priority:10};
+    if(['theatre','arts_centre'].includes(a)) return {label:'תרבות ובילוי',emoji:'🎭',color:'#9454C4',priority:8};
+    return {label:'אטרקציה',emoji:'📸',color:'#159B83',priority:6};
+  }
+  function isTravelPlace(place,category) {
+    const t=place.tags||{};
+    if(t.office || t.craft || t.healthcare || t.amenity==='lawyer') return false;
+    const c=classifyPlace(place);
+    if(category==='food') return ['מסעדה','קפה ומאפה'].includes(c.label);
+    if(category==='shopping') return ['קניות','שוק','קפה ומאפה'].includes(c.label) && (t.shop || t.amenity==='marketplace');
+    if(category==='history') return c.label==='היסטוריה ותרבות' || c.label==='פסל ואנדרטה';
+    if(category==='tourism') return ['פסל ואנדרטה','מזרקה','אטרקציה','תצפית','היסטוריה ותרבות'].includes(c.label);
+    if(category==='nightlife') return ['בר ובילוי','תרבות ובילוי'].includes(c.label);
+    if(category==='nature') return ['פארק וטבע','תצפית'].includes(c.label);
+    return true;
+  }
   const diagnostics = [];
   function logSearch(message) {
     diagnostics.push(message);
@@ -661,9 +728,15 @@
       if (!coords || !p.name) return null;
       const tags={};
       const cats=p.categories || [];
-      if(cats.some(c=>c.startsWith('catering'))) tags.amenity='cafe';
-      else if(cats.some(c=>c.startsWith('commercial'))) tags.shop='shop';
-      else if(cats.some(c=>c.startsWith('culture'))) tags.historic='yes';
+      if(cats.some(c=>c.includes('bar')||c.includes('pub'))) tags.amenity='bar';
+      else if(cats.some(c=>c.includes('restaurant'))) tags.amenity='restaurant';
+      else if(cats.some(c=>c.includes('cafe')||c.includes('coffee'))) tags.amenity='cafe';
+      else if(cats.some(c=>c.includes('fountain'))) tags.amenity='fountain';
+      else if(cats.some(c=>c.includes('museum'))) tags.tourism='museum';
+      else if(cats.some(c=>c.includes('memorial')||c.includes('monument'))) tags.historic='monument';
+      else if(cats.some(c=>c.includes('park'))) tags.leisure='park';
+      else if(cats.some(c=>c.includes('commercial'))) tags.shop='gift';
+      else if(cats.some(c=>c.includes('culture'))) tags.tourism='gallery';
       else tags.tourism='attraction';
       return {id:p.place_id || p.name,name:p.name,lat:coords[1],lon:coords[0],
         distance:Math.round(distanceMeters(lat,lon,coords[1],coords[0])),
@@ -693,6 +766,7 @@
     $('mapResults').hidden = true;
     if (poiLayer) poiLayer.clearLayers();
     closePlace();
+    closeTravelSheet();
     const category = $('poiCategory').value;
     const radius = Number($('poiRadius').value);
     const {lat, lon} = currentPosition;
@@ -754,56 +828,22 @@
       const seen=new Set();
       places=places.filter(place=>{
         const dedup=place.name.trim().toLowerCase()+':'+Math.round(place.lat*10000)+':'+Math.round(place.lon*10000);
-        if(seen.has(dedup) || place.distance>radius) return false;
+        if(seen.has(dedup) || place.distance>radius || !isTravelPlace(place,category)) return false;
         seen.add(dedup);return true;
-      }).sort((a,b)=>a.distance-b.distance).slice(0,60);
+      }).sort((a,b)=>{
+        const score=p=>classifyPlace(p).priority*100 - p.distance/20 + (p.tags.wikipedia?35:0) + (p.tags.wikidata?15:0);
+        return score(b)-score(a);
+      }).slice(0,40);
       logSearch(`מוצגות ${places.length} תוצאות במפה | מקור: ${provider}`);
       if (!poiLayer && map) poiLayer = L.layerGroup().addTo(map);
-      const pinInfo = place => {
-        if (place.tags.shop) return {emoji:'🛍️', color:'#8057bb'};
-        if (place.tags.amenity) return {emoji:'☕', color:'#e18a37'};
-        if (place.tags.historic || ['museum','gallery'].includes(place.tags.tourism)) return {emoji:'🏛️', color:'#3275bd'};
-        return {emoji:'📸', color:'#159b83'};
-      };
       for (const place of places) {
         if (!map) continue;
-        const pin = pinInfo(place);
-        const icon = L.divIcon({
-          className:'',
-          html:`<div class="poi-pin" style="background:${pin.color}"><span>${pin.emoji}</span></div>`,
-          iconSize:[36,42], iconAnchor:[18,40], popupAnchor:[0,-35]
-        });
-        const markerPoi = L.marker([place.lat,place.lon], {icon}).addTo(poiLayer);
-        const popup = document.createElement('div');
-        const title = document.createElement('div'); title.className='poi-popup-title'; title.textContent=place.name;
-        const meta = document.createElement('div'); meta.className='poi-popup-meta'; meta.textContent=`${place.distance} מטר · ${place.kind}`;
-        const summary = document.createElement('div'); summary.className='poi-popup-summary';
-        summary.textContent='טוען הסבר קצר על המקום...';
-        const source = document.createElement('div'); source.className='poi-popup-source';
-        const details = document.createElement('button'); details.type='button'; details.textContent='מידע נוסף';
-        details.addEventListener('click', () => { showPlace(place); map.closePopup(); });
-        popup.append(title,meta,summary,source,details);
-        markerPoi.bindPopup(popup, {maxWidth:310, minWidth:210});
-        markerPoi.on('click', () => pauseFollowing());
-        markerPoi.on('popupopen', async () => {
-          const popupNode = markerPoi.getPopup();
-          const token = ++popupRequestToken;
-          const fallback = place.tags['description:he'] || place.tags.description ||
-            `זהו מקום מסוג ${place.kind}, במרחק כ-${place.distance} מטר מהמיקום שלך.`;
-          summary.textContent = 'מחפש הסבר קצר על המקום...';
-          source.textContent = '';
-          try {
-            const info = await getShortPlaceInfo(place);
-            if (token !== popupRequestToken || !popupNode.isOpen()) return;
-            summary.textContent = info?.text || fallback;
-            source.textContent = info ? 'מקור: ויקיפדיה' : 'מידע: OpenStreetMap';
-          } catch (error) {
-            if (token !== popupRequestToken || !popupNode.isOpen()) return;
-            summary.textContent = fallback;
-            source.textContent = 'מידע: OpenStreetMap';
-          }
-          popupNode.update();
-        });
+        const pin=classifyPlace(place);
+        const icon=L.divIcon({className:'',
+          html:`<div class="travel-pin" style="--pin-color:${pin.color}"><span>${pin.emoji}</span></div>`,
+          iconSize:[42,50],iconAnchor:[21,48]});
+        const markerPoi=L.marker([place.lat,place.lon],{icon,title:place.name}).addTo(poiLayer);
+        markerPoi.on('click',()=>{pauseFollowing();openTravelSheet(place);});
       }
       if (map && places.length) {
         pauseFollowing();
@@ -823,6 +863,51 @@
       if (poiRequest === controller) { poiRequest = null; btn.disabled = false; }
     }
   }
+
+  let travelSheetToken=0;
+  let activeTravelPlace=null;
+  function closeTravelSheet() {
+    ++travelSheetToken;
+    $('travelSheet').hidden=true;
+    $('travelBackdrop').hidden=true;
+    activeTravelPlace=null;
+  }
+  async function openTravelSheet(place) {
+    const token=++travelSheetToken;
+    activeTravelPlace=place;
+    const category=classifyPlace(place);
+    $('travelCategory').textContent=category.emoji+' '+category.label;
+    $('travelTitle').textContent=place.name;
+    $('travelDistance').textContent=`📍 ${place.distance} מטר בקו אווירי`;
+    $('travelSummary').textContent='מחפש מידע קצר על המקום...';
+    $('travelSource').textContent='';
+    $('travelPhoto').replaceChildren();$('travelPhoto').hidden=true;
+    $('travelBackdrop').hidden=false;$('travelSheet').hidden=false;
+    try {
+      const info=await getShortPlaceInfo(place);
+      if(token!==travelSheetToken) return;
+      $('travelSummary').textContent=info?.text || place.tags['description:he'] || place.tags.description ||
+        `זהו מקום מסוג ${category.label}, במרחק של כ-${place.distance} מטר ממך. אין כרגע תיאור נוסף מאומת.`;
+      $('travelSource').textContent=info?'מקור: ויקיפדיה':'פרטי המקום: OpenStreetMap';
+      if(info?.image) {
+        const img=document.createElement('img');img.src=info.image;img.alt='תמונה של '+place.name;img.loading='lazy';
+        $('travelPhoto').append(img);$('travelPhoto').hidden=false;
+      }
+    } catch(error) {
+      if(token!==travelSheetToken) return;
+      $('travelSummary').textContent=place.tags['description:he'] || place.tags.description || `אין כרגע תיאור מאומת למקום הזה.`;
+      $('travelSource').textContent='פרטי המקום: OpenStreetMap';
+    }
+  }
+  $('travelClose').addEventListener('click',closeTravelSheet);
+  $('travelBackdrop').addEventListener('click',closeTravelSheet);
+  $('travelMore').addEventListener('click',()=>{if(!activeTravelPlace)return;const place=activeTravelPlace;closeTravelSheet();showPlace(place);});
+  $('travelNavigate').addEventListener('click',()=>{
+    if(!activeTravelPlace)return;
+    const p=activeTravelPlace;
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.lat+','+p.lon)}&travelmode=walking`,'_blank','noopener,noreferrer');
+  });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('travelSheet').hidden)closeTravelSheet();});
 
   function closePlace() {
     if (detailsRequest) { detailsRequest.abort(); detailsRequest = null; }
@@ -869,7 +954,7 @@
         if (['he','en'].includes(requestedLang)) { lang=requestedLang; title=direct.slice(index+1); }
       }
       async function lookup(language, exactTitle) {
-        const params = {prop:'extracts',exintro:'1',explaintext:'1',exchars:'450'};
+        const params = {prop:'extracts|pageimages',exintro:'1',explaintext:'1',exchars:'450',piprop:'thumbnail',pithumbsize:'650'};
         if (exactTitle) Object.assign(params,{titles:exactTitle,redirects:'1'});
         else Object.assign(params,{generator:'search',gsrsearch:place.name,gsrlimit:'1'});
         const data = await wikiAPI(language,params);
@@ -878,7 +963,7 @@
         const pageName = normalizedPlaceName(page.title);
         const requested = normalizedPlaceName(place.name);
         if (!exactTitle && (!requested || !pageName || !(pageName.includes(requested) || requested.includes(pageName)))) return null;
-        return {text:shortDescription(page.extract)};
+        return {text:shortDescription(page.extract),image:page.thumbnail?.source || null};
       }
       let result = await lookup(lang,title);
       if (!result && lang==='he' && !title) result = await lookup('en',null);
