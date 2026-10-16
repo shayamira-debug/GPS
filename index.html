@@ -417,6 +417,9 @@
   let v3SoundEnabled = true;
   let v3LastSearch = null;
   let v3SearchRunning = false;
+  let v3RetryTimer = null;
+  let v3LastAttemptAt = 0;
+  let v3LastSuccessAt = 0;
   let v3SearchToken = 0;
   let v3LastAlertAt = 0;
   const v3Shown = new Set();
@@ -631,6 +634,7 @@
     gpsAttempt++; // מבטל callbacks של ניסיון קודם
     clearGpsWatch();
     gpsState = 'off';
+    if(v3RetryTimer){clearTimeout(v3RetryTimer);v3RetryTimer=null;}
     updateGpsToggle();
     setStatus(message, type);
     if (poiRequest) poiRequest.abort();
@@ -662,6 +666,7 @@
         updatePosition(position);
         gpsState = 'on';
         updateGpsToggle();
+        v3MaybeDiscover(position.coords.latitude,position.coords.longitude);
         v3AutoDiscover();
         try {
           watchId = navigator.geolocation.watchPosition(
@@ -818,7 +823,6 @@
     diagnostics.length=0;
     logSearch(`מיקום: ${lat.toFixed(5)}, ${lon.toFixed(5)} | רדיוס: ${radius} מ׳ | קטגוריה: ${category}`);
     let places=[];
-    v3Places=[];
     let provider='';
     try {
       if(key) {
@@ -892,8 +896,7 @@
         const markerPoi=L.marker([place.lat,place.lon],{icon,title:place.name}).addTo(poiLayer);
         markerPoi.on('click',()=>{pauseFollowing();openTravelSheet(place);});
       }
-      if (map && places.length) {
-        pauseFollowing();
+      if (map && places.length && !v3SearchRunning) {
         map.setView([lat,lon], radius <= 250 ? 17 : radius <= 500 ? 16 : 15);
       }
       $('mapResults').textContent = `נמצאו ${places.length} מקומות`;
@@ -1129,25 +1132,40 @@
   function v3Toast(message){const el=$('v3Toast');el.textContent=message;el.hidden=false;clearTimeout(v3ToastTimer);v3ToastTimer=setTimeout(()=>el.hidden=true,4500);}
   function v3Chime(){try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.type='sine';osc.frequency.value=740;gain.gain.setValueAtTime(0.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.06,ctx.currentTime+.02);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.25);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.26);osc.onended=()=>ctx.close();}catch(e){console.warn('Audio unavailable',e);}}
   async function v3AutoDiscover(force=false){
-    if(!currentPosition||v3SearchRunning)return;
+    if(!currentPosition||v3SearchRunning||gpsState==='off')return;
+    if(v3RetryTimer){clearTimeout(v3RetryTimer);v3RetryTimer=null;}
     v3SearchRunning=true;
     const token=++v3SearchToken;
     const {lat,lon}=currentPosition;
-    v3LastSearch={lat,lon,count:(v3LastSearch?.count||0)+1};
+    v3LastAttemptAt=Date.now();
     $('v3DiscoveryStatus').textContent='מחפש תגליות מעניינות בסביבה...';
+    let success=false;
     try{
       $('poiCategory').value='all';
       for(const radius of [300,700,1000]){
         if(token!==v3SearchToken||gpsState==='off')break;
-        // Keep the manual search controls compatible with the original V2 search.
         $('poiRadius').value=String(radius);
         await discoverPlaces();
+        if(v3Places.length){success=true;}
         if(v3Places.length>=5)break;
       }
-    }finally{v3SearchRunning=false;}
+      if(success){
+        v3LastSearch={lat,lon,count:(v3LastSearch?.count||0)+1};
+        v3LastSuccessAt=Date.now();
+      }else{
+        $('v3DiscoveryStatus').textContent='החיפוש עדיין לא החזיר תגליות. SIDEWALK תנסה שוב אוטומטית.';
+      }
+    }finally{
+      v3SearchRunning=false;
+      if(!success && gpsState==='on' && token===v3SearchToken){
+        v3RetryTimer=setTimeout(()=>{v3RetryTimer=null;v3AutoDiscover();},20000);
+      }
+    }
   }
   function v3MaybeDiscover(lat,lon){
     if(v3SearchRunning||gpsState!=='on')return;
+    if(v3RetryTimer)return;
+    if(Date.now()-v3LastAttemptAt<12000)return;
     if(!v3LastSearch||distanceMeters(lat,lon,v3LastSearch.lat,v3LastSearch.lon)>=150)v3AutoDiscover();
   }
   document.querySelectorAll('[data-focus]').forEach(button=>button.addEventListener('click',()=>{
