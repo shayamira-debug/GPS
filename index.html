@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK — Discover Places Around You (V2.0)</title>
+  <title>SIDEWALK — Your Local Friend (V3.0 Beta)</title>
   <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
   <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -268,6 +268,24 @@
     .gps-symbol { font-size:27px; line-height:20px; font-weight:bold; }
     .gps-toggle:focus-visible { outline:3px solid #80e8e4; outline-offset:3px; }
     @media(min-width:680px) { .hero { border-radius:0 0 30px 30px; } }
+
+    /* V3 beta — discovery first */
+    .hero{padding-bottom:14px}.hero-logo{width:64px;height:64px}.hero h1{font-size:27px}
+    .v3-intro{padding:4px 2px 12px}.v3-intro h2{font-size:24px;margin:0 0 5px}.v3-intro p{margin:0;color:#567181;font-size:13px}
+    .discovery-grid{display:grid;gap:12px;margin-top:12px}
+    .discovery-card{display:flex;gap:13px;padding:14px;border:1px solid #d9e9ee;border-radius:18px;background:linear-gradient(115deg,#fff,#f3fbfb);text-align:right;width:100%;cursor:pointer;box-shadow:0 3px 12px #082d480a}
+    .discovery-card .em{font-size:28px;background:#e1f7f6;border-radius:13px;min-width:53px;height:53px;display:grid;place-items:center}
+    .discovery-card .body{flex:1;min-width:0}.discovery-card strong{display:block;font-size:16px;color:#082d48}.discovery-card small{display:block;color:#527181;font-size:12px;margin-top:4px;line-height:1.5}
+    .discovery-card .why{color:#177d83;font-size:12px;font-weight:700;margin-top:6px}
+    .v3-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:13px}.v3-pill{border:1px solid #c5e5e5;border-radius:22px;padding:8px 12px;background:#f1fbfa;color:#087f83;font-size:12px}
+    .v3-pill.active{background:#087f83;color:white}.v3-action{background:#0c8f98;color:#fff;font-size:13px;padding:11px 14px}
+    .v3-note{font-size:12px;color:#607783;line-height:1.6}.v3-toast{position:fixed;top:12px;left:12px;right:12px;max-width:520px;margin:auto;z-index:2200;background:#082d48;color:white;border-radius:16px;padding:15px;box-shadow:0 10px 30px #0004;text-align:center}
+    .v3-toast[hidden],#storyExtra[hidden]{display:none}.v3-story-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.v3-story-actions button{font-size:13px;padding:10px 12px;background:#e8f5f6;color:#087f83}
+    #storyExtra{margin-top:12px;padding:12px;background:#f0f8fa;border-radius:12px;line-height:1.7;font-size:14px;white-space:pre-wrap}
+    #storyAsk{display:flex;gap:7px;margin-top:10px}#storyQuestion{flex:1;min-width:0;border:1px solid #cde1e7;border-radius:11px;padding:10px;font-size:14px}
+    #storyAnswer{font-size:13px;color:#527181;margin-top:8px;line-height:1.5}
+    .legacy-location{display:none}.legacy-controls{margin-top:12px}.legacy-controls summary{cursor:pointer;font-size:13px;color:#58717e}
+    #map{height:300px;min-height:300px}.v3-section{scroll-margin-top:12px}
   </style>
 </head>
 
@@ -275,7 +293,7 @@
 <main class="app">
 
   <section class="card hero">
-    <div class="hero-top"><img class="hero-logo" src="sidewalk-app-icon.png" alt="SIDEWALK logo"><div class="hero-copy"><h1>SIDE<span>WALK</span></h1><div class="sub">DISCOVER PLACES AROUND YOU</div></div></div>
+    <div class="hero-top"><img class="hero-logo" src="sidewalk-app-icon.png" alt="SIDEWALK logo"><div class="hero-copy"><h1>SIDE<span>WALK</span></h1><div class="sub">YOUR LOCAL FRIEND, WHEREVER YOU GO</div></div></div>
 
     <div id="status" class="status">ממתין להפעלת המיקום</div>
 
@@ -284,10 +302,10 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V2.0 · SIDEWALK</div>
+    <div class="version-tag">V3.0 BETA · SIDEWALK</div>
   </section>
 
-  <section class="card">
+  <section class="card legacy-location">
     <h2>📍 המיקום שלי</h2>
 
     <div class="grid">
@@ -310,11 +328,17 @@
     <span id="altitude"></span><span id="heading"></span><span id="speed"></span><span id="time"></span>
   </div>
 
-  <section class="card">
-    <h2>✨ מה יש סביבי?</h2>
+  <section class="card v3-section" id="discoverySection">
+    <div class="v3-intro"><h2>✨ לגלות את מה שמסביב</h2><p>מקומות מעניינים וסיפורים מקומיים, בלי לחפש בעצמך.</p></div>
+    <div id="v3Focus" class="v3-toolbar"><button class="v3-pill active" data-focus="all">✨ לגלות הכול</button><button class="v3-pill" data-focus="history">🏛️ סיפורים</button><button class="v3-pill" data-focus="food">☕ אוכל וקפה</button><button class="v3-pill" data-focus="nightlife">🌙 בילויים</button><button class="v3-pill" data-focus="shopping">🛍️ שווקים וקניות</button></div>
+    <div id="v3Discoveries" class="discovery-grid" aria-live="polite"><p class="v3-note">ממתינים למיקום כדי לגלות מקומות בסביבה...</p></div>
+    <div class="v3-toolbar"><button id="v3Refresh" class="v3-action" type="button">↻ רענן תגליות</button><button id="v3Language" class="v3-pill" type="button">🌐 עברית</button><button id="v3Sound" class="v3-pill" type="button">🔔 צליל: פעיל</button></div>
+    <p class="v3-note" id="v3DiscoveryStatus">התגליות מתעדכנות בזמן שהאפליקציה פתוחה.</p>
+    <details class="legacy-controls"><summary>⚙️ חיפוש ידני והגדרות מתקדמות</summary>
+    <h2 style="margin-top:14px">חיפוש לפי קטגוריה ומרחק</h2>
     <div class="discover-controls">
       <div><label class="label" for="poiCategory">קטגוריה</label><select id="poiCategory"><option value="all">✨ מעניין סביבי</option><option value="food">🍽️ אוכל וקפה</option><option value="history">🏛️ היסטוריה ותרבות</option><option value="tourism">📸 פסלים ואטרקציות</option><option value="nightlife">🍸 ברים ובילויים</option><option value="shopping">🛍️ קניות ושווקים</option><option value="nature">🌳 פארקים ונוף</option></select></div>
-      <div><label class="label" for="poiRadius">מרחק</label><select id="poiRadius"><option value="250">250 מטר</option><option value="500" selected>500 מטר</option><option value="1000">1,000 מטר</option></select></div>
+      <div><label class="label" for="poiRadius">מרחק</label><select id="poiRadius"><option value="250">250 מטר</option><option value="300">300 מטר</option><option value="700">700 מטר</option><option value="500" selected>500 מטר</option><option value="1000">1,000 מטר</option></select></div>
     </div>
     <button class="discover-btn" id="discoverBtn" type="button">🔎 גלה מה סביבי</button>
     <details style="margin-top:12px;font-size:13px;color:#355469" id="searchSettings">
@@ -324,10 +348,11 @@
       <div style="margin-top:5px;font-size:12px">עם מפתח: Geoapify ראשי ו-Overpass גיבוי. ללא מפתח: Overpass בלבד. מפתח המוזן באתר סטטי חשוף בדפדפן; מומלץ להגביל אותו לדומיין באתר Geoapify.</div>
       <pre id="searchDiagnostics" style="white-space:pre-wrap;direction:rtl;text-align:right;background:#edf5f7;padding:10px;border-radius:10px;font-size:12px;max-height:190px;overflow:auto">טרם בוצע חיפוש.</pre>
     </details>
-    <div id="poiStatus" class="poi-info" role="status">הפעל מעקב GPS ולאחר מכן לחץ על גילוי מקומות.</div>
+    <div id="poiStatus" class="poi-info" role="status">ממתין למיקום.</div>
+    </details>
   </section>
 
-  <!-- המפה מופיעה לפני רשימת המקומות -->
+  <!-- המפה משנית לתגליות ב-V3 -->
   <section class="card">
     <div class="map-toolbar"><h2 style="margin:0">🗺️ מפה חיה</h2><button id="followBtn" class="follow-btn" type="button">◎ עקוב אחריי: פעיל</button></div>
 
@@ -357,9 +382,13 @@
     <div id="travelPhoto" class="sheet-photo" hidden></div>
     <p id="travelSummary" class="sheet-summary" aria-live="polite"></p>
     <div id="travelSource" class="sheet-source"></div>
-    <div class="sheet-actions"><button id="travelMore" type="button" class="sheet-primary">📖 מידע נוסף</button><button id="travelNavigate" type="button" class="sheet-secondary">➤ ניווט</button></div>
+    <div class="v3-story-actions"><button id="storyPlay" type="button">▶ השמע לי</button><button id="storyExpand" type="button">📖 ספר לי עוד</button></div>
+    <div id="storyExtra" hidden></div>
+    <div id="storyAsk"><input id="storyQuestion" placeholder="רוצה לשאול על המקום?" aria-label="שאלה על המקום"><button id="storyAskBtn" class="sheet-secondary" type="button">שאל</button></div>
+    <div id="storyAnswer" aria-live="polite"></div>
+    <div class="sheet-actions"><button id="travelMore" type="button" class="sheet-primary">📖 מקור ומידע נוסף</button><button id="travelNavigate" type="button" class="sheet-secondary">➤ ניווט</button></div>
   </aside>
-
+  <div id="v3Toast" class="v3-toast" hidden role="status"></div>
 
 </main>
 
@@ -382,6 +411,18 @@
   let poiLayer = null;
   let poiRequest = null;
   let detailsRequest = null;
+  let v3Places = [];
+  let v3Focus = 'all';
+  let v3Language = 'he';
+  let v3SoundEnabled = true;
+  let v3LastSearch = null;
+  let v3SearchRunning = false;
+  let v3SearchToken = 0;
+  let v3LastAlertAt = 0;
+  const v3Shown = new Set();
+  let v3CurrentInfo = null;
+  let v3StoryExpanded = false;
+  let v3ToastTimer = null;
 
   let lastGeocodeLat = null;
   let lastGeocodeLon = null;
@@ -559,6 +600,7 @@
     );
 
     reverseGeocode(lat, lon);
+    v3MaybeDiscover(lat,lon);
   }
 
   function geoErrorText(error) {
@@ -591,6 +633,7 @@
     gpsState = 'off';
     updateGpsToggle();
     setStatus(message, type);
+    if (poiRequest) poiRequest.abort();
   }
 
   function startTracking() {
@@ -619,6 +662,7 @@
         updatePosition(position);
         gpsState = 'on';
         updateGpsToggle();
+        v3AutoDiscover();
         try {
           watchId = navigator.geolocation.watchPosition(
             next => {
@@ -766,7 +810,7 @@
     $('mapResults').hidden = true;
     if (poiLayer) poiLayer.clearLayers();
     closePlace();
-    closeTravelSheet();
+    // Preserve the story currently being read during automatic refresh.
     const category = $('poiCategory').value;
     const radius = Number($('poiRadius').value);
     const {lat, lon} = currentPosition;
@@ -774,6 +818,7 @@
     diagnostics.length=0;
     logSearch(`מיקום: ${lat.toFixed(5)}, ${lon.toFixed(5)} | רדיוס: ${radius} מ׳ | קטגוריה: ${category}`);
     let places=[];
+    v3Places=[];
     let provider='';
     try {
       if(key) {
@@ -835,6 +880,8 @@
         return score(b)-score(a);
       }).slice(0,40);
       logSearch(`מוצגות ${places.length} תוצאות במפה | מקור: ${provider}`);
+      v3Places = places;
+      v3RenderDiscoveries();
       if (!poiLayer && map) poiLayer = L.layerGroup().addTo(map);
       for (const place of places) {
         if (!map) continue;
@@ -857,7 +904,8 @@
         console.warn('POI search failed', error);
         logSearch('שגיאה סופית: '+(error.message || error.name));
         $('mapResults').hidden = true;
-        $('poiStatus').textContent = 'חיפוש המקומות נכשל בכל שרתי החיפוש. בדוק חיבור לאינטרנט ונסה שוב. פרטים: ' + (error.message || 'שגיאת תקשורת');
+        $('poiStatus').textContent = 'שירות חיפוש המקומות אינו זמין כרגע. ייתכן עומס או חסימה בשרת; נסה לרענן. פרטים: ' + (error.message || 'שגיאת תקשורת');
+      $('v3DiscoveryStatus').textContent = 'לא ניתן לעדכן תגליות כרגע. אפשר לנסות שוב; אין זה בהכרח ניתוק אינטרנט.';
       }
     } finally {
       if (poiRequest === controller) { poiRequest = null; btn.disabled = false; }
@@ -871,6 +919,7 @@
     $('travelSheet').hidden=true;
     $('travelBackdrop').hidden=true;
     activeTravelPlace=null;
+    if (window.speechSynthesis) speechSynthesis.cancel();
   }
   async function openTravelSheet(place) {
     const token=++travelSheetToken;
@@ -881,6 +930,8 @@
     $('travelDistance').textContent=`📍 ${place.distance} מטר בקו אווירי`;
     $('travelSummary').textContent='מחפש מידע קצר על המקום...';
     $('travelSource').textContent='';
+    $('storyExtra').hidden=true; $('storyExtra').textContent=''; $('storyAnswer').textContent=''; $('storyQuestion').value='';
+    v3CurrentInfo=null; v3StoryExpanded=false; $('storyPlay').textContent='▶ השמע לי';
     $('travelPhoto').replaceChildren();$('travelPhoto').hidden=true;
     $('travelBackdrop').hidden=false;$('travelSheet').hidden=false;
     try {
@@ -888,6 +939,7 @@
       if(token!==travelSheetToken) return;
       $('travelSummary').textContent=info?.text || place.tags['description:he'] || place.tags.description ||
         `זהו מקום מסוג ${category.label}, במרחק של כ-${place.distance} מטר ממך. אין כרגע תיאור נוסף מאומת.`;
+      v3CurrentInfo=info;
       $('travelSource').textContent=info?'מקור: ויקיפדיה':'פרטי המקום: OpenStreetMap';
       if(info?.image) {
         const img=document.createElement('img');img.src=info.image;img.alt='תמונה של '+place.name;img.loading='lazy';
@@ -963,7 +1015,7 @@
         const pageName = normalizedPlaceName(page.title);
         const requested = normalizedPlaceName(place.name);
         if (!exactTitle && (!requested || !pageName || !(pageName.includes(requested) || requested.includes(pageName)))) return null;
-        return {text:shortDescription(page.extract),image:page.thumbnail?.source || null};
+        return {text:shortDescription(page.extract),fullText:page.extract,image:page.thumbnail?.source || null,lang:language,title:page.title};
       }
       let result = await lookup(lang,title);
       if (!result && lang==='he' && !title) result = await lookup('en',null);
@@ -1034,6 +1086,101 @@
       if (detailsRequest === controller) detailsRequest = null;
     }
   }
+  // V3: simple, session-only companion. AI chat requires a secure backend in a later milestone.
+  function v3Score(p) {
+    const c=classifyPlace(p);
+    const h=new Date().getHours();
+    let score=c.priority*14 - p.distance/28 + (p.tags.wikipedia?38:0)+(p.tags.wikidata?20:0)+(p.tags.description?12:0);
+    if(h<11 && ['קפה ומאפה','היסטוריה ותרבות','שוק'].includes(c.label))score+=15;
+    if(h>=11 && h<17 && ['מסעדה','קפה ומאפה','היסטוריה ותרבות'].includes(c.label))score+=10;
+    if(h>=17 && ['בר ובילוי','מסעדה','תצפית'].includes(c.label))score+=14;
+    return score;
+  }
+  function v3Candidates() {
+    const candidates=v3Places.filter(p=>v3Focus==='all'||isTravelPlace(p,v3Focus));
+    const sorted=[...candidates].sort((a,b)=>v3Score(b)-v3Score(a));
+    const result=[], categories=new Set();
+    for(const p of sorted){const c=classifyPlace(p).label;if(!categories.has(c)){result.push(p);categories.add(c);}if(result.length>=4)break;}
+    for(const p of sorted){if(result.length>=5)break;if(!result.includes(p))result.push(p);}
+    return result;
+  }
+  function v3RenderDiscoveries() {
+    const host=$('v3Discoveries');host.replaceChildren();
+    const items=v3Candidates();
+    if(!items.length){const p=document.createElement('p');p.className='v3-note';p.textContent=v3Places.length?'לא נמצאו כרגע מקומות במיקוד הזה. אפשר לחזור לגילוי כללי.':'לא נמצאו כרגע תגליות בטווח החיפוש. נסה לרענן או להמשיך ללכת.';host.append(p);return;}
+    for(const place of items){
+      const category=classifyPlace(place);
+      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card';
+      const em=document.createElement('span');em.className='em';em.textContent=category.emoji;
+      const body=document.createElement('span');body.className='body';
+      const title=document.createElement('strong');title.textContent=place.name;
+      const meta=document.createElement('small');meta.textContent=`${category.label} · ${place.distance} מטר בקו אווירי`;
+      const why=document.createElement('div');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'✨ יש סיפור שכדאי לגלות':'לגלות מה מיוחד כאן ←';
+      body.append(title,meta,why);btn.append(em,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
+    }
+    $('v3DiscoveryStatus').textContent=`${items.length} תגליות נבחרות · עודכן לפי המיקום וההעדפה הזמנית`;
+    const exceptional=items.find(p=>p.tags.wikipedia && classifyPlace(p).priority>=9 && !v3Shown.has(p.id));
+    for(const p of items)v3Shown.add(p.id);
+    if(exceptional && Date.now()-v3LastAlertAt>5*60*1000 && v3LastSearch && v3LastSearch.count>1 && document.visibilityState==='visible'){
+      v3LastAlertAt=Date.now();v3Toast(`✨ תגלית מיוחדת לידך: ${exceptional.name}`);
+      if(v3SoundEnabled)v3Chime();
+    }
+  }
+  function v3Toast(message){const el=$('v3Toast');el.textContent=message;el.hidden=false;clearTimeout(v3ToastTimer);v3ToastTimer=setTimeout(()=>el.hidden=true,4500);}
+  function v3Chime(){try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const osc=ctx.createOscillator();const gain=ctx.createGain();osc.type='sine';osc.frequency.value=740;gain.gain.setValueAtTime(0.0001,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(.06,ctx.currentTime+.02);gain.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+.25);osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.26);osc.onended=()=>ctx.close();}catch(e){console.warn('Audio unavailable',e);}}
+  async function v3AutoDiscover(force=false){
+    if(!currentPosition||v3SearchRunning)return;
+    v3SearchRunning=true;
+    const token=++v3SearchToken;
+    const {lat,lon}=currentPosition;
+    v3LastSearch={lat,lon,count:(v3LastSearch?.count||0)+1};
+    $('v3DiscoveryStatus').textContent='מחפש תגליות מעניינות בסביבה...';
+    try{
+      $('poiCategory').value='all';
+      for(const radius of [300,700,1000]){
+        if(token!==v3SearchToken||gpsState==='off')break;
+        // Keep the manual search controls compatible with the original V2 search.
+        $('poiRadius').value=String(radius);
+        await discoverPlaces();
+        if(v3Places.length>=5)break;
+      }
+    }finally{v3SearchRunning=false;}
+  }
+  function v3MaybeDiscover(lat,lon){
+    if(v3SearchRunning||gpsState!=='on')return;
+    if(!v3LastSearch||distanceMeters(lat,lon,v3LastSearch.lat,v3LastSearch.lon)>=150)v3AutoDiscover();
+  }
+  document.querySelectorAll('[data-focus]').forEach(button=>button.addEventListener('click',()=>{
+    v3Focus=button.dataset.focus;
+    document.querySelectorAll('[data-focus]').forEach(b=>b.classList.toggle('active',b===button));
+    v3RenderDiscoveries();
+  }));
+  $('v3Refresh').addEventListener('click',()=>v3AutoDiscover(true));
+  $('v3Language').addEventListener('click',()=>{
+    v3Language=v3Language==='he'?'en':'he';
+    $('v3Language').textContent=v3Language==='he'?'🌐 עברית':'🌐 English';
+    v3Toast(v3Language==='he'?'עברית נבחרה. מידע ממקורות זרים עשוי להופיע בשפת המקור.':'English selected. Full UI translation will follow in the next update.');
+  });
+  $('v3Sound').addEventListener('click',()=>{v3SoundEnabled=!v3SoundEnabled;$('v3Sound').textContent=v3SoundEnabled?'🔔 צליל: פעיל':'🔕 צליל: כבוי';});
+  $('storyExpand').addEventListener('click',()=>{
+    v3StoryExpanded=!v3StoryExpanded;
+    $('storyExtra').hidden=!v3StoryExpanded;
+    $('storyExpand').textContent=v3StoryExpanded?'📖 הצג פחות':'📖 ספר לי עוד';
+    if(v3StoryExpanded)$('storyExtra').textContent=v3CurrentInfo?.fullText||'אין כרגע מידע מורחב מאומת על המקום. ניתן לפתוח את מקור המידע לקבלת פרטים נוספים.';
+  });
+  $('storyPlay').addEventListener('click',()=>{
+    if(!('speechSynthesis' in window)){v3Toast('הדפדפן אינו תומך בהקראה.');return;}
+    if(speechSynthesis.speaking){speechSynthesis.cancel();$('storyPlay').textContent='▶ השמע לי';return;}
+    const text=$('travelSummary').textContent;
+    const u=new SpeechSynthesisUtterance(text);u.lang=v3CurrentInfo?.lang==='en'?'en-US':'he-IL';u.rate=.94;
+    u.onend=u.onerror=()=>$('storyPlay').textContent='▶ השמע לי';
+    $('storyPlay').textContent='■ עצור';speechSynthesis.speak(u);
+  });
+  $('storyAskBtn').addEventListener('click',()=>{
+    const q=$('storyQuestion').value.trim();if(!q)return;
+    $('storyAnswer').textContent='השיחה החופשית על המקום תופעל בשלב חיבור מנוע ה-AI המאובטח. בינתיים אפשר לקרוא את המידע המורחב ולפתוח את המקור.';
+  });
+
   $('followBtn').addEventListener('click', () => {
     followLocation = true;
     updateFollowButton();
