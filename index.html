@@ -364,7 +364,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.2.2 DISCOVERY REVEAL BETA · SIDEWALK</div>
+    <div class="version-tag">V3.2.3 AUDIO FIX BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -394,7 +394,7 @@
     <div class="v3-intro"><h2>✨ תראה מה מסתתר סביבך...</h2><p>תגליות קטנות, סיפורים גדולים. כל פינה יכולה להפתיע.</p></div>
     <div id="v3Focus" class="v3-toolbar"><button class="v3-pill active" data-focus="all">✨ לגלות הכול</button><button class="v3-pill" data-focus="history">🏛️ סיפורים</button><button class="v3-pill" data-focus="food">☕ אוכל וקפה</button><button class="v3-pill" data-focus="nightlife">🌙 בילויים</button><button class="v3-pill" data-focus="shopping">🛍️ שווקים וקניות</button></div>
     <div id="v3Discoveries" class="discovery-grid" aria-live="polite"><p class="v3-note">ממתינים למיקום כדי לגלות מקומות בסביבה...</p></div>
-    <div class="v3-toolbar"><button id="v3Refresh" class="v3-action" type="button">↻ רענן תגליות</button><button id="v3Language" class="v3-pill" type="button">🌐 עברית</button><button id="v3Sound" class="v3-pill" type="button">🔔 צליל: פעיל</button></div>
+    <div class="v3-toolbar"><button id="v3Refresh" class="v3-action" type="button">↻ רענן תגליות</button><button id="v3Language" class="v3-pill" type="button">🌐 עברית</button><button id="v3Sound" class="v3-pill" type="button">🔔 צליל: פעיל</button><button id="v323TestSound" class="v3-pill" type="button">♪ בדוק צליל</button></div>
     <p class="v3-note" id="v3DiscoveryStatus">התגליות מתעדכנות בזמן שהאפליקציה פתוחה.</p>
     <details class="legacy-controls"><summary>⚙️ חיפוש ידני והגדרות מתקדמות</summary>
     <h2 style="margin-top:14px">חיפוש לפי קטגוריה ומרחק</h2>
@@ -496,31 +496,48 @@
   let v322RevealPending = false;
   let v322SearchWasWalking = false;
   function v322UnlockAudio(){
-    if(v322AudioUnlocked)return;
     try{
       const Audio=window.AudioContext||window.webkitAudioContext;
-      if(!Audio)return;
+      if(!Audio)return Promise.resolve(false);
       v322Audio=v322Audio||new Audio();
-      v322Audio.resume().then(()=>{v322AudioUnlocked=v322Audio.state==='running';}).catch(()=>{});
-    }catch(e){}
+      // A silent oscillator inside a direct user gesture primes Web Audio on iOS.
+      if(v322Audio.state==='suspended'){
+        const osc=v322Audio.createOscillator(),gain=v322Audio.createGain();
+        gain.gain.value=0;osc.connect(gain);gain.connect(v322Audio.destination);
+        osc.start();osc.stop(v322Audio.currentTime+.015);
+      }
+      return v322Audio.resume().then(()=>{
+        v322AudioUnlocked=v322Audio.state==='running';
+        return v322AudioUnlocked;
+      }).catch(()=>false);
+    }catch(e){return Promise.resolve(false);}
   }
-  // iOS permits sound only after a user gesture. Keep context alive for subsequent discoveries.
   document.addEventListener('pointerdown',v322UnlockAudio,{passive:true});
+  document.addEventListener('touchstart',v322UnlockAudio,{passive:true});
   document.addEventListener('keydown',v322UnlockAudio);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible' && v322Audio && v322Audio.state==='running')v322AudioUnlocked=true;
+  });
   function v322CancelReveal(){v322RevealTimers.forEach(clearTimeout);v322RevealTimers=[];}
   function v322PlaceKey(p){return String(p.id??`${p.name}:${p.lat.toFixed(5)}:${p.lon.toFixed(5)}`);}
-  function v322PlayNote(index){
-    if(!v3SoundEnabled||document.visibilityState!=='visible'||!v322AudioUnlocked||!v322Audio||v322Audio.state!=='running')return;
+  function v322PlayNote(index,force=false){
+    if((!v3SoundEnabled&&!force)||document.visibilityState!=='visible'||!v322Audio||v322Audio.state!=='running')return false;
     try{
       const ctx=v322Audio,now=ctx.currentTime;
-      const osc=ctx.createOscillator(),gain=ctx.createGain();
-      osc.type='sine';osc.frequency.setValueAtTime([659.25,783.99,880,987.77][index%4],now);
-      gain.gain.setValueAtTime(.0001,now);
-      gain.gain.exponentialRampToValueAtTime(.042,now+.018);
-      gain.gain.exponentialRampToValueAtTime(.0001,now+.22);
-      osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+.23);
-    }catch(e){}
+      // Soft two-tone bell: more audible than the previous 220ms sine ping.
+      for(const [offset,frequency,volume] of [[0,659.25,.13],[.12,987.77,.085]]){
+        const osc=ctx.createOscillator(),gain=ctx.createGain();
+        osc.type='sine';osc.frequency.value=frequency*Math.pow(2,(index%3)/12);
+        gain.gain.setValueAtTime(.0001,now+offset);
+        gain.gain.exponentialRampToValueAtTime(volume,now+offset+.025);
+        gain.gain.exponentialRampToValueAtTime(.0001,now+offset+.46);
+        osc.connect(gain);gain.connect(ctx.destination);
+        osc.start(now+offset);osc.stop(now+offset+.48);
+      }
+      return true;
+    }catch(e){return false;}
   }
+
 
 
   let lastGeocodeLat = null;
@@ -1319,6 +1336,14 @@
     v3Toast(v3Language==='he'?'עברית נבחרה. מידע ממקורות זרים עשוי להופיע בשפת המקור.':'English selected. Full UI translation will follow in the next update.');
   });
   $('v3Sound').addEventListener('click',()=>{v322UnlockAudio();v3SoundEnabled=!v3SoundEnabled;$('v3Sound').textContent=v3SoundEnabled?'🔔 צליל: פעיל':'🔕 צליל: כבוי';});
+  $('v323TestSound').addEventListener('click',async()=>{
+    const btn=$('v323TestSound');btn.textContent='♪ בודק...';
+    const ready=await v322UnlockAudio();
+    const played=ready && v322PlayNote(0,true);
+    btn.textContent=played?'♪ הצליל הופעל':'♪ נסה שוב';
+    v3Toast(played?'🔔 צליל הבדיקה הופעל. אם לא נשמע, בדוק את עוצמת השמע באייפון.':'השמע נחסם בדפדפן. גע שוב בכפתור בדיקת הצליל.');
+    setTimeout(()=>{btn.textContent='♪ בדוק צליל';},3500);
+  });
   $('storyExpand').addEventListener('click',()=>{
     v3StoryExpanded=!v3StoryExpanded;
     $('storyExtra').hidden=!v3StoryExpanded;
