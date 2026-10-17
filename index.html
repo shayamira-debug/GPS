@@ -364,7 +364,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.2.3 AUDIO FIX BETA · SIDEWALK</div>
+    <div class="version-tag">V3.2.4 AUDIO DISCOVERY FIX BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -495,6 +495,8 @@
   let v322AudioUnlocked = false;
   let v322RevealPending = false;
   let v322SearchWasWalking = false;
+  let v324PendingAudio = 0;
+  let v324AudioRequestInFlight = false;
   function v322UnlockAudio(){
     try{
       const Audio=window.AudioContext||window.webkitAudioContext;
@@ -508,6 +510,13 @@
       }
       return v322Audio.resume().then(()=>{
         v322AudioUnlocked=v322Audio.state==='running';
+        if(v322AudioUnlocked && v324PendingAudio && !v324AudioRequestInFlight){
+          v324AudioRequestInFlight=true;
+          const count=Math.min(v324PendingAudio,3);v324PendingAudio=0;
+          // User gesture has now enabled sound: one confirmation chime for recent discoveries.
+          if(v3SoundEnabled && document.visibilityState==='visible')v322PlayNote(0);
+          v324AudioRequestInFlight=false;
+        }
         return v322AudioUnlocked;
       }).catch(()=>false);
     }catch(e){return Promise.resolve(false);}
@@ -1271,10 +1280,15 @@
           if(!btn.isConnected)return;
           btn.classList.remove('v322-hidden');
           btn.classList.add('v322-revealed');
-          if(isNew){v322Announced.add(v322PlaceKey(place));v322PlayNote(index);}
+          if(isNew){
+            v322Announced.add(v322PlaceKey(place));
+            if(v3SoundEnabled){
+              if(!v322PlayNote(index))v324PendingAudio=Math.min(3,v324PendingAudio+1);
+            }
+          }
         },index*750);
         v322RevealTimers.push(timer);
-      }else{v322Announced.add(v322PlaceKey(place));}
+      } // Re-rendering existing cards must not consume their new-discovery sound state.
     });
     $('v3DiscoveryStatus').textContent=`${items.length} תגליות נבחרות · עודכן לפי המיקום וההעדפה הזמנית`;
     const exceptional=items.find(p=>p.tags.wikipedia && classifyPlace(p).priority>=9 && !v3Shown.has(p.id));
