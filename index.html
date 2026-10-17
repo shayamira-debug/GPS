@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK — Your Local Friend (V3.1 Beta)</title>
+  <title>SIDEWALK — Your Local Friend (V3.2 Visual Beta)</title>
   <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
   <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -286,6 +286,35 @@
     #storyAnswer{font-size:13px;color:#527181;margin-top:8px;line-height:1.5}
     .legacy-location{display:none}.legacy-controls{margin-top:12px}.legacy-controls summary{cursor:pointer;font-size:13px;color:#58717e}
     #map{height:300px;min-height:300px}.v3-section{scroll-margin-top:12px}
+
+    /* V3.2 visual discovery experience — functional GPS and search retained */
+    .v3-section{background:linear-gradient(170deg,#fff9f1 0%,#fff 36%,#f2faff 100%);border:1px solid #f3e8dd}
+    .v3-intro{padding:8px 3px 12px}.v3-intro h2{font-size:26px;letter-spacing:-.6px;color:#142e4a}
+    .v3-intro p{font-size:14px;color:#526d80}
+    .discovery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:15px}
+    .discovery-grid>.v3-note{grid-column:1/-1}
+    .discovery-card{position:relative;display:flex;flex-direction:column;gap:0;overflow:hidden;padding:0;min-height:212px;border:0;border-radius:21px;background:#fff;box-shadow:0 9px 26px rgba(18,50,78,.13);text-align:right;transition:transform .18s,box-shadow .18s;isolation:isolate}
+    .discovery-card:active{transform:scale(.98)}.discovery-card:focus-visible{outline:3px solid #ff9a5a;outline-offset:3px}
+    .discovery-card.featured{grid-column:1/-1;min-height:300px;border-radius:25px}
+    .discovery-art{height:123px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(130deg,var(--tone1),var(--tone2));width:100%}
+    .featured .discovery-art{height:193px}
+    .discovery-art::before,.discovery-art::after{content:'';position:absolute;border:2px solid #ffffff55;border-radius:50%;width:170px;height:170px;left:-35px;top:-55px;pointer-events:none}
+    .discovery-art::after{width:100px;height:100px;left:auto;right:-25px;top:auto;bottom:-45px}
+    .discovery-art .em{font-size:56px;min-width:0;height:auto;background:transparent;border-radius:0;filter:drop-shadow(0 8px 6px #0002);z-index:1}
+    .featured .discovery-art .em{font-size:78px}
+    .discovery-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2}
+    .discovery-art .category-chip{position:absolute;right:10px;top:10px;z-index:3;border-radius:99px;padding:6px 10px;background:#fffffff0;color:#19324b;font-size:11px;font-weight:800;box-shadow:0 3px 10px #0002}
+    .discovery-card .body{padding:12px 12px 14px;display:flex;flex-direction:column;gap:5px;flex:1}
+    .discovery-card strong{font-size:15px;line-height:1.4;color:#17344e;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .featured strong{font-size:21px}
+    .discovery-card small{font-size:11px;margin:0;color:#637d8d;line-height:1.4}
+    .discovery-card .why{font-size:11px;margin-top:auto;padding-top:7px;color:#a34b42;font-weight:800}
+    .featured .why{font-size:13px}
+    .v3-pill{background:#fff;border:1px solid #e6e2e8;box-shadow:0 2px 8px #122d4010}
+    .v3-pill.active{background:linear-gradient(105deg,#ed5d76,#fa8752);border-color:transparent;box-shadow:0 5px 13px #f3756940}
+    .v3-action{background:linear-gradient(110deg,#f06376,#ff914d);box-shadow:0 5px 15px #f0756b35}
+    @media(min-width:620px){.discovery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.discovery-card.featured{grid-column:span 2;grid-row:span 2}.featured .discovery-art{height:320px}}
+    @media(prefers-reduced-motion:reduce){.discovery-card{transition:none}}
   </style>
 </head>
 
@@ -302,7 +331,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.1 BETA · SIDEWALK</div>
+    <div class="version-tag">V3.2 VISUAL BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -329,7 +358,7 @@
   </div>
 
   <section class="card v3-section" id="discoverySection">
-    <div class="v3-intro"><h2>✨ לגלות את מה שמסביב</h2><p>מקומות מעניינים וסיפורים מקומיים, בלי לחפש בעצמך.</p></div>
+    <div class="v3-intro"><h2>✨ תראה מה מסתתר סביבך...</h2><p>תגליות קטנות, סיפורים גדולים. כל פינה יכולה להפתיע.</p></div>
     <div id="v3Focus" class="v3-toolbar"><button class="v3-pill active" data-focus="all">✨ לגלות הכול</button><button class="v3-pill" data-focus="history">🏛️ סיפורים</button><button class="v3-pill" data-focus="food">☕ אוכל וקפה</button><button class="v3-pill" data-focus="nightlife">🌙 בילויים</button><button class="v3-pill" data-focus="shopping">🛍️ שווקים וקניות</button></div>
     <div id="v3Discoveries" class="discovery-grid" aria-live="polite"><p class="v3-note">ממתינים למיקום כדי לגלות מקומות בסביבה...</p></div>
     <div class="v3-toolbar"><button id="v3Refresh" class="v3-action" type="button">↻ רענן תגליות</button><button id="v3Language" class="v3-pill" type="button">🌐 עברית</button><button id="v3Sound" class="v3-pill" type="button">🔔 צליל: פעיל</button></div>
@@ -1107,20 +1136,47 @@
     for(const p of sorted){if(result.length>=5)break;if(!result.includes(p))result.push(p);}
     return result;
   }
+  // Use only the exact Wikipedia article explicitly tagged on the place; never show a generic city photo as the place.
+  const v32PhotoCache=new Map();
+  async function v32LoadPhoto(place,art){
+    const tag=place.tags?.wikipedia;
+    if(!tag||!tag.includes(':'))return;
+    const split=tag.indexOf(':'),lang=tag.slice(0,split),title=tag.slice(split+1);
+    if(!/^[a-z]{2,3}$/.test(lang)||!title)return;
+    const key=lang+':'+title;
+    try{
+      let url=v32PhotoCache.get(key);
+      if(url===undefined){
+        const endpoint=`https://${lang}.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail&pithumbsize=700&titles=${encodeURIComponent(title)}`;
+        const response=await fetch(endpoint,{signal:AbortSignal.timeout(5500)});
+        if(!response.ok)throw Error('Photo service unavailable');
+        const data=await response.json();const page=Object.values(data.query?.pages||{})[0];
+        url=page?.thumbnail?.source||null;v32PhotoCache.set(key,url);
+      }
+      if(url&&art.isConnected){const img=document.createElement('img');img.src=url;img.alt=`תמונה מתוך ויקיפדיה: ${place.name}`;img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.remove();art.insertBefore(img,art.firstChild);}
+    }catch(e){/* keep beautiful category illustration if image source is unavailable */}
+  }
   function v3RenderDiscoveries() {
     const host=$('v3Discoveries');host.replaceChildren();
     const items=v3Candidates();
     if(!items.length){const p=document.createElement('p');p.className='v3-note';p.textContent=v3Places.length?'לא נמצאו כרגע מקומות במיקוד הזה. אפשר לחזור לגילוי כללי.':'לא נמצאו כרגע תגליות בטווח החיפוש. נסה לרענן או להמשיך ללכת.';host.append(p);return;}
-    for(const place of items){
+    items.forEach((place,index)=>{
       const category=classifyPlace(place);
-      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card';
+      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');
+      const art=document.createElement('span');art.className='discovery-art';
+      const kind=(place.tags?.historic||place.tags?.tourism||place.tags?.amenity||place.tags?.shop||'').toLowerCase();
+      const palette=/restaurant|cafe|food|bakery/.test(kind)?['#ffb467','#ff6e7d']:/bar|pub|nightclub/.test(kind)?['#ac83ed','#ed6dba']:/park|garden|nature/.test(kind)?['#7bdaa0','#1aa9a3']:/shop|market/.test(kind)?['#ffcf70','#f57d71']:['#6fbce9','#9e82e9'];
+      art.style.setProperty('--tone1',palette[0]);art.style.setProperty('--tone2',palette[1]);
       const em=document.createElement('span');em.className='em';em.textContent=category.emoji;
+      const chip=document.createElement('span');chip.className='category-chip';chip.textContent=category.label;
+      art.append(em,chip);
       const body=document.createElement('span');body.className='body';
       const title=document.createElement('strong');title.textContent=place.name;
-      const meta=document.createElement('small');meta.textContent=`${category.label} · ${place.distance} מטר בקו אווירי`;
-      const why=document.createElement('div');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'✨ יש סיפור שכדאי לגלות':'לגלות מה מיוחד כאן ←';
-      body.append(title,meta,why);btn.append(em,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
-    }
+      const meta=document.createElement('small');meta.textContent=`📍 ${place.distance} מטר בקו אווירי`;
+      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'✨ יש כאן סיפור מעניין · גלה אותו ←':'✨ מה מסתתר כאן? גלה ←';
+      body.append(title,meta,why);btn.append(art,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
+      v32LoadPhoto(place,art);
+    });
     $('v3DiscoveryStatus').textContent=`${items.length} תגליות נבחרות · עודכן לפי המיקום וההעדפה הזמנית`;
     const exceptional=items.find(p=>p.tags.wikipedia && classifyPlace(p).priority>=9 && !v3Shown.has(p.id));
     for(const p of items)v3Shown.add(p.id);
