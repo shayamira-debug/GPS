@@ -316,6 +316,11 @@
     @media(min-width:620px){.discovery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.discovery-card.featured{grid-column:span 2;grid-row:span 2}.featured .discovery-art{height:320px}}
     @media(prefers-reduced-motion:reduce){.discovery-card{transition:none}}
 
+    /* V3.2.2: staged discovery reveal. Respect accessibility and motion preferences. */
+    .discovery-card.v322-hidden{opacity:0;visibility:hidden;pointer-events:none;animation:none}
+    .discovery-card.v322-revealed{animation:v322Pop .42s cubic-bezier(.2,.8,.2,1) both}
+    @keyframes v322Pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @media(prefers-reduced-motion:reduce){.discovery-card.v322-revealed{animation:none}}
     /* V3.2.1 Premium: presentation only, keep discovery and GPS logic intact */
     .v3-section{background:linear-gradient(155deg,#fff5e8 0%,#fff 42%,#eaf8ff 100%);border:1px solid #f3e4df;box-shadow:0 18px 46px rgba(34,63,103,.10)}
     .v3-intro h2{font-size:clamp(24px,6vw,32px);font-weight:900;line-height:1.18;background:linear-gradient(95deg,#1a3865,#e75480);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -359,7 +364,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.2.1 PREMIUM BETA · SIDEWALK</div>
+    <div class="version-tag">V3.2.2 DISCOVERY REVEAL BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -483,6 +488,40 @@
   let v3CurrentInfo = null;
   let v3StoryExpanded = false;
   let v3ToastTimer = null;
+  // Reveal only genuinely new places, never re-chime for existing cards.
+  const v322Announced = new Set();
+  let v322RevealTimers = [];
+  let v322Audio = null;
+  let v322AudioUnlocked = false;
+  let v322RevealPending = false;
+  let v322SearchWasWalking = false;
+  function v322UnlockAudio(){
+    if(v322AudioUnlocked)return;
+    try{
+      const Audio=window.AudioContext||window.webkitAudioContext;
+      if(!Audio)return;
+      v322Audio=v322Audio||new Audio();
+      v322Audio.resume().then(()=>{v322AudioUnlocked=v322Audio.state==='running';}).catch(()=>{});
+    }catch(e){}
+  }
+  // iOS permits sound only after a user gesture. Keep context alive for subsequent discoveries.
+  document.addEventListener('pointerdown',v322UnlockAudio,{passive:true});
+  document.addEventListener('keydown',v322UnlockAudio);
+  function v322CancelReveal(){v322RevealTimers.forEach(clearTimeout);v322RevealTimers=[];}
+  function v322PlaceKey(p){return String(p.id??`${p.name}:${p.lat.toFixed(5)}:${p.lon.toFixed(5)}`);}
+  function v322PlayNote(index){
+    if(!v3SoundEnabled||document.visibilityState!=='visible'||!v322AudioUnlocked||!v322Audio||v322Audio.state!=='running')return;
+    try{
+      const ctx=v322Audio,now=ctx.currentTime;
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.type='sine';osc.frequency.setValueAtTime([659.25,783.99,880,987.77][index%4],now);
+      gain.gain.setValueAtTime(.0001,now);
+      gain.gain.exponentialRampToValueAtTime(.042,now+.018);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+.22);
+      osc.connect(gain);gain.connect(ctx.destination);osc.start(now);osc.stop(now+.23);
+    }catch(e){}
+  }
+
 
   let lastGeocodeLat = null;
   let lastGeocodeLon = null;
@@ -942,7 +981,7 @@
       }).slice(0,40);
       logSearch(`מוצגות ${places.length} תוצאות במפה | מקור: ${provider}`);
       v3Places = places;
-      v3RenderDiscoveries();
+      if(v3SearchRunning){v322RevealPending=true;}else{v3RenderDiscoveries(true);}
       if (!poiLayer && map) poiLayer = L.layerGroup().addTo(map);
       for (const place of places) {
         if (!map) continue;
@@ -1184,13 +1223,14 @@
       if(url&&art.isConnected){const img=document.createElement('img');img.src=url;img.alt=`תמונה מתוך ויקיפדיה: ${place.name}`;img.loading='lazy';img.referrerPolicy='no-referrer';img.onerror=()=>img.remove();art.insertBefore(img,art.firstChild);}
     }catch(e){/* keep beautiful category illustration if image source is unavailable */}
   }
-  function v3RenderDiscoveries() {
+  function v3RenderDiscoveries(reveal=false) {
+    v322CancelReveal();
     const host=$('v3Discoveries');host.replaceChildren();
     const items=v3Candidates();
     if(!items.length){const p=document.createElement('p');p.className='v3-note';p.textContent=v3Places.length?'לא נמצאו כרגע מקומות במיקוד הזה. אפשר לחזור לגילוי כללי.':'לא נמצאו כרגע תגליות בטווח החיפוש. נסה לרענן או להמשיך ללכת.';host.append(p);return;}
     items.forEach((place,index)=>{
       const category=classifyPlace(place);
-      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');btn.style.setProperty('--enter-delay',Math.min(index*65,260)+'ms');
+      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');btn.style.setProperty('--enter-delay',reveal?'0ms':Math.min(index*65,260)+'ms');
       const art=document.createElement('span');art.className='discovery-art';
       const kind=(place.tags?.historic||place.tags?.tourism||place.tags?.amenity||place.tags?.shop||'').toLowerCase();
       const palette=/restaurant|cafe|food|bakery/.test(kind)?['#ffb467','#ff6e7d']:/bar|pub|nightclub/.test(kind)?['#ac83ed','#ed6dba']:/park|garden|nature/.test(kind)?['#7bdaa0','#1aa9a3']:/shop|market/.test(kind)?['#ffcf70','#f57d71']:['#6fbce9','#9e82e9'];
@@ -1206,13 +1246,25 @@
       const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 לגלות את הסיפור של המקום ←':'✨ בוא לגלות מה מיוחד כאן ←';
       body.append(title,meta,why);btn.append(art,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
       v32LoadPhoto(place,art);
+      if(reveal){
+        const isNew=!v322Announced.has(v322PlaceKey(place));
+        // The first card appears immediately; subsequent cards reveal one at a time.
+        btn.classList.add('v322-hidden');
+        const timer=setTimeout(()=>{
+          if(!btn.isConnected)return;
+          btn.classList.remove('v322-hidden');
+          btn.classList.add('v322-revealed');
+          if(isNew){v322Announced.add(v322PlaceKey(place));v322PlayNote(index);}
+        },index*750);
+        v322RevealTimers.push(timer);
+      }else{v322Announced.add(v322PlaceKey(place));}
     });
     $('v3DiscoveryStatus').textContent=`${items.length} תגליות נבחרות · עודכן לפי המיקום וההעדפה הזמנית`;
     const exceptional=items.find(p=>p.tags.wikipedia && classifyPlace(p).priority>=9 && !v3Shown.has(p.id));
     for(const p of items)v3Shown.add(p.id);
     if(exceptional && Date.now()-v3LastAlertAt>5*60*1000 && v3LastSearch && v3LastSearch.count>1 && document.visibilityState==='visible'){
       v3LastAlertAt=Date.now();v3Toast(`✨ תגלית מיוחדת לידך: ${exceptional.name}`);
-      if(v3SoundEnabled)v3Chime();
+      // Reveal notes are played once per new discovery, not again here.
     }
   }
   function v3Toast(message){const el=$('v3Toast');el.textContent=message;el.hidden=false;clearTimeout(v3ToastTimer);v3ToastTimer=setTimeout(()=>el.hidden=true,4500);}
@@ -1243,6 +1295,7 @@
       }
     }finally{
       v3SearchRunning=false;
+      if(v322RevealPending){v322RevealPending=false;v3RenderDiscoveries(true);}
       if(!success && gpsState==='on' && token===v3SearchToken){
         v3RetryTimer=setTimeout(()=>{v3RetryTimer=null;v3AutoDiscover();},20000);
       }
@@ -1265,7 +1318,7 @@
     $('v3Language').textContent=v3Language==='he'?'🌐 עברית':'🌐 English';
     v3Toast(v3Language==='he'?'עברית נבחרה. מידע ממקורות זרים עשוי להופיע בשפת המקור.':'English selected. Full UI translation will follow in the next update.');
   });
-  $('v3Sound').addEventListener('click',()=>{v3SoundEnabled=!v3SoundEnabled;$('v3Sound').textContent=v3SoundEnabled?'🔔 צליל: פעיל':'🔕 צליל: כבוי';});
+  $('v3Sound').addEventListener('click',()=>{v322UnlockAudio();v3SoundEnabled=!v3SoundEnabled;$('v3Sound').textContent=v3SoundEnabled?'🔔 צליל: פעיל':'🔕 צליל: כבוי';});
   $('storyExpand').addEventListener('click',()=>{
     v3StoryExpanded=!v3StoryExpanded;
     $('storyExtra').hidden=!v3StoryExpanded;
