@@ -315,6 +315,34 @@
     .v3-action{background:linear-gradient(110deg,#f06376,#ff914d);box-shadow:0 5px 15px #f0756b35}
     @media(min-width:620px){.discovery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.discovery-card.featured{grid-column:span 2;grid-row:span 2}.featured .discovery-art{height:320px}}
     @media(prefers-reduced-motion:reduce){.discovery-card{transition:none}}
+
+    /* V3.2.1 Premium: presentation only, keep discovery and GPS logic intact */
+    .v3-section{background:linear-gradient(155deg,#fff5e8 0%,#fff 42%,#eaf8ff 100%);border:1px solid #f3e4df;box-shadow:0 18px 46px rgba(34,63,103,.10)}
+    .v3-intro h2{font-size:clamp(24px,6vw,32px);font-weight:900;line-height:1.18;background:linear-gradient(95deg,#1a3865,#e75480);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .discovery-grid{gap:13px}
+    .discovery-card{border:1px solid rgba(255,255,255,.88);box-shadow:0 10px 30px rgba(20,43,80,.15);border-radius:23px;animation:discoveryRise .42s ease both;animation-delay:var(--enter-delay,0ms)}
+    .discovery-card.featured{min-height:330px;border-radius:28px;box-shadow:0 16px 38px rgba(26,46,86,.19)}
+    .discovery-card:hover{transform:translateY(-3px);box-shadow:0 15px 34px rgba(20,43,80,.2)}
+    .discovery-art{height:142px}
+    .featured .discovery-art{height:215px}
+    .discovery-art::after{z-index:2;pointer-events:none}
+    .featured .discovery-art::after{content:'';inset:35% 0 0;width:auto;height:auto;border:0;border-radius:0;background:linear-gradient(transparent,rgba(9,25,49,.74));z-index:3}
+    .discovery-art img{transition:transform .45s ease}
+    .discovery-card:hover .discovery-art img{transform:scale(1.045)}
+    .discovery-art .category-chip{z-index:5;backdrop-filter:blur(8px);background:rgba(255,255,255,.91);font-size:11px}
+    .discovery-art .distance-chip{position:absolute;left:10px;top:10px;z-index:5;background:rgba(15,36,60,.78);color:#fff;padding:6px 9px;border-radius:99px;font-size:11px;font-weight:800;direction:rtl;backdrop-filter:blur(8px)}
+    .discovery-art .featured-label{position:absolute;right:12px;bottom:12px;z-index:5;color:#fff;background:rgba(235,87,120,.92);padding:7px 11px;border-radius:99px;font-size:12px;font-weight:800;box-shadow:0 5px 16px #0003}
+    .discovery-card .body{padding:14px 13px 16px;gap:7px;background:linear-gradient(180deg,#fff,#fffaf8)}
+    .discovery-card strong{font-size:16px;color:#16314d;font-weight:900}
+    .discovery-card.featured strong{font-size:23px;line-height:1.24}
+    .discovery-card .why{color:#c64b6b;background:#fff0f3;border-radius:11px;padding:9px 10px;margin-top:4px;font-size:11px}
+    .discovery-card.featured .why{font-size:13px}
+    .travel-sheet{border-radius:28px 28px 0 0}
+    #travelPhoto:not([hidden]){border-radius:18px;overflow:hidden;box-shadow:0 9px 22px #19395820}
+    #storyPlay{background:linear-gradient(110deg,#e94f80,#ff9960)!important;color:#fff!important;box-shadow:0 6px 17px #ec6e7945}
+    @keyframes discoveryRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    @media(min-width:620px){.featured .discovery-art{height:330px}}
+    @media(prefers-reduced-motion:reduce){.discovery-card{animation:none}.discovery-art img{transition:none}}
   </style>
 </head>
 
@@ -331,7 +359,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.2 VISUAL BETA · SIDEWALK</div>
+    <div class="version-tag">V3.2.1 PREMIUM BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -1162,7 +1190,7 @@
     if(!items.length){const p=document.createElement('p');p.className='v3-note';p.textContent=v3Places.length?'לא נמצאו כרגע מקומות במיקוד הזה. אפשר לחזור לגילוי כללי.':'לא נמצאו כרגע תגליות בטווח החיפוש. נסה לרענן או להמשיך ללכת.';host.append(p);return;}
     items.forEach((place,index)=>{
       const category=classifyPlace(place);
-      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');
+      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');btn.style.setProperty('--enter-delay',Math.min(index*65,260)+'ms');
       const art=document.createElement('span');art.className='discovery-art';
       const kind=(place.tags?.historic||place.tags?.tourism||place.tags?.amenity||place.tags?.shop||'').toLowerCase();
       const palette=/restaurant|cafe|food|bakery/.test(kind)?['#ffb467','#ff6e7d']:/bar|pub|nightclub/.test(kind)?['#ac83ed','#ed6dba']:/park|garden|nature/.test(kind)?['#7bdaa0','#1aa9a3']:/shop|market/.test(kind)?['#ffcf70','#f57d71']:['#6fbce9','#9e82e9'];
@@ -1170,10 +1198,12 @@
       const em=document.createElement('span');em.className='em';em.textContent=category.emoji;
       const chip=document.createElement('span');chip.className='category-chip';chip.textContent=category.label;
       art.append(em,chip);
+      const distanceChip=document.createElement('span');distanceChip.className='distance-chip';distanceChip.textContent=`📍 ${place.distance} מ׳`;art.append(distanceChip);
+      if(index===0){const featuredLabel=document.createElement('span');featuredLabel.className='featured-label';featuredLabel.textContent='✨ התגלית המומלצת';art.append(featuredLabel);}
       const body=document.createElement('span');body.className='body';
       const title=document.createElement('strong');title.textContent=place.name;
-      const meta=document.createElement('small');meta.textContent=`📍 ${place.distance} מטר בקו אווירי`;
-      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'✨ יש כאן סיפור מעניין · גלה אותו ←':'✨ מה מסתתר כאן? גלה ←';
+      const meta=document.createElement('small');meta.textContent=index===0?'מקום ששווה להכיר ממש לידך':'לגלות משהו חדש בסביבה';
+      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 לגלות את הסיפור של המקום ←':'✨ בוא לגלות מה מיוחד כאן ←';
       body.append(title,meta,why);btn.append(art,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
       v32LoadPhoto(place,art);
     });
