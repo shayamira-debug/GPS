@@ -362,7 +362,7 @@
     @media(prefers-reduced-motion:reduce){.v325-orbit,.v325-core{animation:none}}
 
 
-    /* V3.2.6 Urban Explorer: visual-only override, preserving application logic */
+    /* V3.2.7 Smart Places: Urban Explorer styling retained, preserving application logic */
     :root{--navy:#19344f;--teal:#356ea5;--sea:#244c76;--mist:#e8f0f8}
     body{background:linear-gradient(180deg,#e9f1f8 0,#f2f5f8 280px,#f5f7fa 100%);color:#19344f}
     .hero{background:linear-gradient(125deg,#152f4b,#244c76 76%,#356ea5);box-shadow:0 9px 26px #19344f25}
@@ -414,7 +414,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.2.6 URBAN EXPLORER BETA · SIDEWALK</div>
+    <div class="version-tag">V3.2.7 SMART PLACES BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -876,9 +876,10 @@
       '["tourism"~"^(attraction|museum|gallery|viewpoint|artwork|zoo|aquarium|theme_park)$"]',
       '["historic"~"^(monument|memorial|castle|ruins|archaeological_site|building|city_gate|fort|manor|church|wayside_shrine|yes)$"]',
       '["amenity"~"^(marketplace|theatre|arts_centre|fountain)$"]',
+      '["building"="retail"]',
       '["leisure"~"^(park|garden|nature_reserve)$"]'],
     food: ['["amenity"~"^(restaurant|cafe|fast_food|ice_cream|food_court)$"]', '["shop"~"^(bakery|pastry|confectionery|chocolate|coffee|deli)$"]'],
-    shopping: ['["shop"~"^(gift|souvenir|clothes|fashion|shoes|jewelry|books|antiques|art|craft|mall|department_store|bakery|chocolate|wine)$"]', '["amenity"="marketplace"]'],
+    shopping: ['["shop"~"^(gift|souvenir|clothes|fashion|shoes|jewelry|books|antiques|art|craft|mall|department_store|bakery|chocolate|wine)$"]', '["amenity"="marketplace"]', '["building"="retail"]'],
     history: ['["historic"~"^(monument|memorial|castle|ruins|archaeological_site|building|city_gate|fort|manor|church|wayside_shrine|yes)$"]', '["tourism"~"^(museum|gallery)$"]'],
     tourism: ['["tourism"~"^(attraction|artwork|viewpoint|museum|gallery|zoo|aquarium|theme_park)$"]', '["amenity"="fountain"]', '["historic"~"^(monument|memorial)$"]'],
     nightlife: ['["amenity"~"^(bar|pub|biergarten|nightclub|theatre|arts_centre)$"]'],
@@ -907,6 +908,7 @@
     if(['restaurant','fast_food','food_court'].includes(a)) return {label:'מסעדה',emoji:'🍽️',color:'#E9764A',priority:7};
     if(['cafe','ice_cream'].includes(a) || ['bakery','pastry','confectionery','coffee','chocolate'].includes(sh)) return {label:'קפה ומאפה',emoji:'☕',color:'#996342',priority:7};
     if(['bar','pub','biergarten','nightclub'].includes(a)) return {label:'בר ובילוי',emoji:'🍸',color:'#9454C4',priority:7};
+    if(sh==='mall' || sh==='department_store' || t.building==='retail' || t.placeType==='shopping_mall') return {label:'מרכז קניות',emoji:'🏬',color:'#244C76',priority:11};
     if(a==='marketplace') return {label:'שוק',emoji:'🏪',color:'#D89C39',priority:8};
     if(sh) return {label:'קניות',emoji:'🛍️',color:'#D35F93',priority:5};
     if(le) return {label:'פארק וטבע',emoji:'🌳',color:'#2B9970',priority:7};
@@ -914,12 +916,22 @@
     if(['theatre','arts_centre'].includes(a)) return {label:'תרבות ובילוי',emoji:'🎭',color:'#9454C4',priority:8};
     return {label:'אטרקציה',emoji:'📸',color:'#159B83',priority:6};
   }
+  // Show only cuisine information explicitly supplied by the place data; never infer from its name.
+  function placeDetailLabel(place) {
+    const c=classifyPlace(place), raw=String(place.tags?.cuisine || '').toLowerCase();
+    if(c.label==='מסעדה' && raw) {
+      const labels={italian:'איטלקית',pizza:'פיצרייה',japanese:'יפנית',sushi:'סושי',chinese:'סינית',thai:'תאילנדית',indian:'הודית',mexican:'מקסיקנית',french:'צרפתית',greek:'יוונית',turkish:'טורקית',mediterranean:'ים־תיכונית',arab:'ערבית',israeli:'ישראלית',burger:'המבורגרים',american:'אמריקאית',vietnamese:'וייטנאמית',korean:'קוריאנית',seafood:'מאכלי ים',vegetarian:'צמחונית',vegan:'טבעונית',regional:'מקומית'};
+      const types=[...new Set(raw.split(/[;,]/).map(v=>labels[v.trim()]).filter(Boolean))].slice(0,2);
+      if(types.length) return 'מסעדה '+types.join(' · ');
+    }
+    return c.label;
+  }
   function isTravelPlace(place,category) {
     const t=place.tags||{};
     if(t.office || t.craft || t.healthcare || t.amenity==='lawyer') return false;
     const c=classifyPlace(place);
     if(category==='food') return ['מסעדה','קפה ומאפה'].includes(c.label);
-    if(category==='shopping') return ['קניות','שוק','קפה ומאפה'].includes(c.label) && (t.shop || t.amenity==='marketplace');
+    if(category==='shopping') return ['קניות','מרכז קניות','שוק','קפה ומאפה'].includes(c.label) && (t.shop || t.amenity==='marketplace');
     if(category==='history') return c.label==='היסטוריה ותרבות' || c.label==='פסל ואנדרטה';
     if(category==='tourism') return ['פסל ואנדרטה','מזרקה','אטרקציה','תצפית','היסטוריה ותרבות'].includes(c.label);
     if(category==='nightlife') return ['בר ובילוי','תרבות ובילוי'].includes(c.label);
@@ -950,6 +962,10 @@
       if (!coords || !p.name) return null;
       const tags={};
       const cats=p.categories || [];
+      const raw=p.datasource?.raw || {};
+      if(typeof raw.cuisine==='string') tags.cuisine=raw.cuisine;
+      if(typeof p.catering?.cuisine==='string') tags.cuisine=p.catering.cuisine;
+      if(cats.some(c=>c.includes('shopping_mall'))) {tags.shop='mall';tags.placeType='shopping_mall';}
       if(cats.some(c=>c.includes('bar')||c.includes('pub'))) tags.amenity='bar';
       else if(cats.some(c=>c.includes('restaurant'))) tags.amenity='restaurant';
       else if(cats.some(c=>c.includes('cafe')||c.includes('coffee'))) tags.amenity='cafe';
@@ -957,7 +973,7 @@
       else if(cats.some(c=>c.includes('museum'))) tags.tourism='museum';
       else if(cats.some(c=>c.includes('memorial')||c.includes('monument'))) tags.historic='monument';
       else if(cats.some(c=>c.includes('park'))) tags.leisure='park';
-      else if(cats.some(c=>c.includes('commercial'))) tags.shop='gift';
+      else if(cats.some(c=>c.includes('commercial')) && !tags.shop) tags.shop='gift';
       else if(cats.some(c=>c.includes('culture'))) tags.tourism='gallery';
       else tags.tourism='attraction';
       return {id:p.place_id || p.name,name:p.name,lat:coords[1],lon:coords[0],
@@ -1101,7 +1117,7 @@
     const token=++travelSheetToken;
     activeTravelPlace=place;
     const category=classifyPlace(place);
-    $('travelCategory').textContent=category.emoji+' '+category.label;
+    $('travelCategory').textContent=category.emoji+' '+placeDetailLabel(place);
     $('travelTitle').textContent=place.name;
     $('travelDistance').textContent=`📍 ${place.distance} מטר בקו אווירי`;
     $('travelSummary').textContent='מחפש מידע קצר על המקום...';
@@ -1270,6 +1286,7 @@
     if(h<11 && ['קפה ומאפה','היסטוריה ותרבות','שוק'].includes(c.label))score+=15;
     if(h>=11 && h<17 && ['מסעדה','קפה ומאפה','היסטוריה ותרבות'].includes(c.label))score+=10;
     if(h>=17 && ['בר ובילוי','מסעדה','תצפית'].includes(c.label))score+=14;
+    if(c.label==='מרכז קניות' && p.distance<=350) score+=65;
     return score;
   }
   function v3Candidates() {
@@ -1278,6 +1295,9 @@
     const result=[], categories=new Set();
     for(const p of sorted){const c=classifyPlace(p).label;if(!categories.has(c)){result.push(p);categories.add(c);}if(result.length>=4)break;}
     for(const p of sorted){if(result.length>=5)break;if(!result.includes(p))result.push(p);}
+    // A nearby major shopping center should not disappear behind five smaller discoveries.
+    const mall=sorted.find(p=>classifyPlace(p).label==='מרכז קניות' && p.distance<=350);
+    if(mall && !result.includes(mall)){if(result.length>=5)result.pop();result.push(mall);}
     return result;
   }
   // Use only the exact Wikipedia article explicitly tagged on the place; never show a generic city photo as the place.
@@ -1335,13 +1355,13 @@
       const palette=/restaurant|cafe|food|bakery/.test(kind)?['#ffb467','#ff6e7d']:/bar|pub|nightclub/.test(kind)?['#ac83ed','#ed6dba']:/park|garden|nature/.test(kind)?['#7bdaa0','#1aa9a3']:/shop|market/.test(kind)?['#ffcf70','#f57d71']:['#6fbce9','#9e82e9'];
       art.style.setProperty('--tone1',palette[0]);art.style.setProperty('--tone2',palette[1]);
       const em=document.createElement('span');em.className='em';em.textContent=category.emoji;
-      const chip=document.createElement('span');chip.className='category-chip';chip.textContent=category.label;
+      const chip=document.createElement('span');chip.className='category-chip';chip.textContent=placeDetailLabel(place);
       art.append(em,chip);
       const distanceChip=document.createElement('span');distanceChip.className='distance-chip';distanceChip.textContent=`📍 ${place.distance} מ׳`;art.append(distanceChip);
       if(index===0){const featuredLabel=document.createElement('span');featuredLabel.className='featured-label';featuredLabel.textContent='✨ התגלית המומלצת';art.append(featuredLabel);}
       const body=document.createElement('span');body.className='body';
       const title=document.createElement('strong');title.textContent=place.name;
-      const meta=document.createElement('small');meta.textContent=index===0?'מקום ששווה להכיר ממש לידך':'לגלות משהו חדש בסביבה';
+      const meta=document.createElement('small');meta.textContent=placeDetailLabel(place)+' · '+(index===0?'מקום ששווה להכיר ממש לידך':'לגלות משהו חדש בסביבה');
       const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 לגלות את הסיפור של המקום ←':'✨ בוא לגלות מה מיוחד כאן ←';
       body.append(title,meta,why);btn.append(art,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
       v32LoadPhoto(place,art);
