@@ -362,7 +362,7 @@
     @media(prefers-reduced-motion:reduce){.v325-orbit,.v325-core{animation:none}}
 
 
-    /* V3.2.8 Smart Places: Urban Explorer styling retained, preserving application logic */
+    /* V3.2.9 Smart Places: Urban Explorer styling retained, preserving application logic */
     :root{--navy:#19344f;--teal:#356ea5;--sea:#244c76;--mist:#e8f0f8}
     body{background:linear-gradient(180deg,#e9f1f8 0,#f2f5f8 280px,#f5f7fa 100%);color:#19344f}
     .hero{background:linear-gradient(125deg,#152f4b,#244c76 76%,#356ea5);box-shadow:0 9px 26px #19344f25}
@@ -399,7 +399,7 @@
     @media(min-width:620px){.featured .discovery-art{height:340px}}
 
 
-    /* V3.2.8: compact, photo-led discovery list */
+    /* V3.2.9: compact, photo-led discovery list */
     .v328-controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:14px 0 12px;color:#19344f;font-weight:700;font-size:13px}
     .v328-controls select,.v328-view{background:#fff;border:1px solid #d9e3ee;border-radius:12px;padding:10px;color:#244c76}
     .v328-view{display:flex;padding:3px;margin-inline-start:auto}
@@ -436,7 +436,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.2.8 SMART PLACES BETA · SIDEWALK</div>
+    <div class="version-tag">V3.2.9 SMART PLACES BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -1056,6 +1056,70 @@
     try {return await fetch(url,{...options,signal:attempt.signal});}
     finally {clearTimeout(timer);parentSignal.removeEventListener('abort',onAbort);}
   }
+  // V3.2.9: small, bounded in-memory cache for nearby POI queries.
+  const v329Cache=new Map();
+  let v329LastCompletedAt=0;
+  function v329CacheKey(lat,lon,category,radius,key){
+    return [Math.round(lat*1000),Math.round(lon*1000),category,radius,key?'geo':'osm'].join(':');
+  }
+  function v329ReadCache(key){
+    const item=v329Cache.get(key);
+    if(!item || Date.now()-item.time>5*60*1000){v329Cache.delete(key);return null;}
+    return item;
+  }
+  function v329WriteCache(key,places,provider){
+    v329Cache.set(key,{time:Date.now(),places,provider});
+    if(v329Cache.size>35)v329Cache.delete(v329Cache.keys().next().value);
+  }
+  // Race two public Overpass instances; cancel loser requests after first successful response.
+  async function v329FetchOverpass(query,controller,lat,lon){
+    const endpoints=[
+      'https://overpass.private.coffee/api/interpreter',
+      'https://overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter'
+    ];
+    const preferred=endpoints[preferredEndpoint-1]||endpoints[0];
+    const ordered=[preferred,...endpoints.filter(x=>x!==preferred)];
+    const request=async(endpoint,signal)=>{
+      const start=performance.now();
+      const response=await fetchWithTimeout(endpoint,{
+        method:'POST',body:'data='+encodeURIComponent(query),
+        headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}
+      },signal,4800);
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const data=await response.json();
+      if(!Array.isArray(data.elements))throw new Error('תשובה לא תקינה');
+      logSearch(`${new URL(endpoint).hostname}: ${data.elements.length} רשומות, ${((performance.now()-start)/1000).toFixed(1)} שניות`);
+      return {places:normalizeOverpass(data,lat,lon),endpoint};
+    };
+    const attempts=ordered.map((endpoint,i)=>({endpoint,abort:new AbortController(),delay:i===0?0:i===1?250:1000}));
+    const onAbort=()=>attempts.forEach(a=>a.abort.abort());
+    controller.signal.addEventListener('abort',onAbort,{once:true});
+    let settled=false,failures=0;
+    try{
+      const result=await new Promise((resolve,reject)=>{
+        for(const a of attempts){
+          (async()=>{
+            try{
+              if(a.delay)await new Promise(r=>setTimeout(r,a.delay));
+              if(settled||controller.signal.aborted)return;
+              const found=await request(a.endpoint,a.abort.signal);
+              if(!settled){settled=true;resolve(found);}
+            }catch(err){
+              if(settled)return;
+              logSearch(`${new URL(a.endpoint).hostname}: ${err.name==='AbortError'?'timeout':err.message}`);
+              if(++failures===attempts.length){settled=true;reject(err);}
+            }
+          })();
+        }
+      });
+      preferredEndpoint=endpoints.indexOf(result.endpoint)+1;
+      return result.places;
+    }finally{
+      attempts.forEach(a=>a.abort.abort());
+      controller.signal.removeEventListener('abort',onAbort);
+    }
+  }
   async function discoverPlaces() {
     if (!currentPosition) {
       $('poiStatus').textContent = 'יש להפעיל GPS ולהמתין לקבלת מיקום לפני החיפוש.';
@@ -1067,16 +1131,20 @@
     const btn = $('discoverBtn');
     btn.disabled = true;
     $('poiStatus').textContent = 'מחפש מקומות בסביבה...';
-    $('poiList').replaceChildren();
-    $('mapResults').hidden = true;
-    if (poiLayer) poiLayer.clearLayers();
-    closePlace();
+    // Keep the previous results visible while fetching fresh data.
     // Preserve the story currently being read during automatic refresh.
     const category = $('poiCategory').value;
     const radius = Number($('poiRadius').value);
     const {lat, lon} = currentPosition;
     const key = $('geoapifyKey').value.trim();
+    const cacheKey=v329CacheKey(lat,lon,category,radius,key);
+    const cached=v329ReadCache(cacheKey);
     diagnostics.length=0;
+    if(cached){
+      $('poiStatus').textContent='מציג תוצאות שמורות · מעדכן ברקע...';
+      if(!v3Places.length){v3Places=cached.places;v3RenderDiscoveries(false);}
+      logSearch('תוצאות זמינות בזיכרון המטמון');
+    }
     logSearch(`מיקום: ${lat.toFixed(5)}, ${lon.toFixed(5)} | רדיוס: ${radius} מ׳ | קטגוריה: ${category}`);
     let places=[];
     let provider='';
@@ -1099,35 +1167,9 @@
       } else logSearch('לא הוגדר מפתח Geoapify — משתמש ב-Overpass');
       if(!provider) {
         const query=buildOverpassQuery(category,radius,lat,lon);
-        const endpoints=[
-          'https://overpass.private.coffee/api/interpreter',
-          'https://overpass-api.de/api/interpreter',
-          'https://overpass.kumi.systems/api/interpreter'
-        ];
-        const ordered=[endpoints[preferredEndpoint-1] || endpoints[0],...endpoints.filter((_,i)=>i!==preferredEndpoint-1)];
-        let lastError=null;
-        for(const endpoint of ordered) {
-          if(controller.signal.aborted) throw new DOMException('Aborted','AbortError');
-          const start=performance.now();
-          try {
-            $('poiStatus').textContent='מחפש באמצעות Overpass...';
-            const response=await fetchWithTimeout(endpoint,{
-              method:'POST',body:'data='+encodeURIComponent(query),
-              headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}
-            },controller.signal,7000);
-            if(!response.ok) throw new Error('HTTP '+response.status);
-            places=normalizeOverpass(await response.json(),lat,lon);
-            provider='Overpass';
-            preferredEndpoint=endpoints.indexOf(endpoint)+1;
-            logSearch(`${new URL(endpoint).hostname}: ${places.length} תוצאות, ${((performance.now()-start)/1000).toFixed(1)} שניות`);
-            break;
-          } catch(error) {
-            if(controller.signal.aborted) throw error;
-            lastError=error;
-            logSearch(`${new URL(endpoint).hostname}: ${error.name==='AbortError'?'timeout':error.message} (${((performance.now()-start)/1000).toFixed(1)} שניות)`);
-          }
-        }
-        if(!provider) throw lastError || new Error('אין תגובה משרתי החיפוש');
+        $('poiStatus').textContent='מחפש באמצעות Overpass (שרתי גיבוי במקביל)...';
+        places=await v329FetchOverpass(query,controller,lat,lon);
+        provider='Overpass';
       }
       if(poiRequest!==controller) return;
       const seen=new Set();
@@ -1140,7 +1182,10 @@
         return score(b)-score(a);
       }).slice(0,40);
       logSearch(`מוצגות ${places.length} תוצאות במפה | מקור: ${provider}`);
+      v329WriteCache(cacheKey,places,provider);
+      v329LastCompletedAt=Date.now();
       v3Places = places;
+      if(poiLayer)poiLayer.clearLayers();
       if(v3SearchRunning){v322RevealPending=true;}else{v3RenderDiscoveries(true);}
       if (!poiLayer && map) poiLayer = L.layerGroup().addTo(map);
       for (const place of places) {
@@ -1162,9 +1207,8 @@
       if (error.name !== 'AbortError') {
         console.warn('POI search failed', error);
         logSearch('שגיאה סופית: '+(error.message || error.name));
-        $('mapResults').hidden = true;
         $('poiStatus').textContent = 'שירות חיפוש המקומות אינו זמין כרגע. ייתכן עומס או חסימה בשרת; נסה לרענן. פרטים: ' + (error.message || 'שגיאת תקשורת');
-      $('v3DiscoveryStatus').textContent = 'לא ניתן לעדכן תגליות כרגע. אפשר לנסות שוב; אין זה בהכרח ניתוק אינטרנט.';
+      $('v3DiscoveryStatus').textContent = v3Places.length?'מוצגות תגליות מהחיפוש הקודם · לא ניתן לרענן כרגע.':'לא ניתן לעדכן תגליות כרגע. אפשר לנסות שוב; אין זה בהכרח ניתוק אינטרנט.';
       }
     } finally {
       if (poiRequest === controller) { poiRequest = null; btn.disabled = false; }
@@ -1484,8 +1528,9 @@
         if(token!==v3SearchToken||gpsState==='off')break;
         $('poiRadius').value=String(radius);
         v325SearchState(true,radius===300?'מחפש במרחק הליכה קצר...':radius===700?'מרחיב את החיפוש לעוד רחובות...':'בודק גם מקומות קצת רחוקים יותר...');
+        const before=v329LastCompletedAt;
         await discoverPlaces();
-        if(v3Places.length){success=true;}
+        if(v329LastCompletedAt>before && v3Places.length){success=true;}
         if(v3Places.length>=5)break;
       }
       if(success){
