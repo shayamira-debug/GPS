@@ -362,7 +362,7 @@
     @media(prefers-reduced-motion:reduce){.v325-orbit,.v325-core{animation:none}}
 
 
-    /* V3.2.9 Smart Places: Urban Explorer styling retained, preserving application logic */
+    /* V3.2.9.1 Smart Places: Urban Explorer styling retained, preserving application logic */
     :root{--navy:#19344f;--teal:#356ea5;--sea:#244c76;--mist:#e8f0f8}
     body{background:linear-gradient(180deg,#e9f1f8 0,#f2f5f8 280px,#f5f7fa 100%);color:#19344f}
     .hero{background:linear-gradient(125deg,#152f4b,#244c76 76%,#356ea5);box-shadow:0 9px 26px #19344f25}
@@ -399,7 +399,7 @@
     @media(min-width:620px){.featured .discovery-art{height:340px}}
 
 
-    /* V3.2.9: compact, photo-led discovery list */
+    /* V3.2.9.1: compact, photo-led discovery list */
     .v328-controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:14px 0 12px;color:#19344f;font-weight:700;font-size:13px}
     .v328-controls select,.v328-view{background:#fff;border:1px solid #d9e3ee;border-radius:12px;padding:10px;color:#244c76}
     .v328-view{display:flex;padding:3px;margin-inline-start:auto}
@@ -436,7 +436,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.2.9 SMART PLACES BETA · SIDEWALK</div>
+    <div class="version-tag">V3.2.9.1 SMART PLACES BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -1056,7 +1056,7 @@
     try {return await fetch(url,{...options,signal:attempt.signal});}
     finally {clearTimeout(timer);parentSignal.removeEventListener('abort',onAbort);}
   }
-  // V3.2.9: small, bounded in-memory cache for nearby POI queries.
+  // V3.2.9.1: small, bounded in-memory cache for nearby POI queries.
   const v329Cache=new Map();
   let v329LastCompletedAt=0;
   function v329CacheKey(lat,lon,category,radius,key){
@@ -1093,17 +1093,20 @@
       return {places:normalizeOverpass(data,lat,lon),endpoint};
     };
     const attempts=ordered.map((endpoint,i)=>({endpoint,abort:new AbortController(),delay:i===0?0:i===1?250:1000}));
-    const onAbort=()=>attempts.forEach(a=>a.abort.abort());
+    let abortRace=null;
+    const onAbort=()=>{attempts.forEach(a=>a.abort.abort());if(abortRace)abortRace(new DOMException('Search cancelled','AbortError'));};
     controller.signal.addEventListener('abort',onAbort,{once:true});
     let settled=false,failures=0;
     try{
       const result=await new Promise((resolve,reject)=>{
+        abortRace=reject;
+        if(controller.signal.aborted){reject(new DOMException('Search cancelled','AbortError'));return;}
         for(const a of attempts){
           (async()=>{
             try{
               if(a.delay)await new Promise(r=>setTimeout(r,a.delay));
               if(settled||controller.signal.aborted)return;
-              const found=await request(a.endpoint,a.abort.signal);
+              const found=await Promise.race([request(a.endpoint,a.abort.signal),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timeout response')),6000))]);
               if(!settled){settled=true;resolve(found);}
             }catch(err){
               if(settled)return;
@@ -1146,6 +1149,7 @@
       logSearch('תוצאות זמינות בזיכרון המטמון');
     }
     logSearch(`מיקום: ${lat.toFixed(5)}, ${lon.toFixed(5)} | רדיוס: ${radius} מ׳ | קטגוריה: ${category}`);
+    const searchWatchdog=setTimeout(()=>controller.abort(),13000);
     let places=[];
     let provider='';
     try {
@@ -1204,6 +1208,10 @@
       $('mapResults').hidden = false;
       $('poiStatus').textContent = places.length ? `נמצאו ${places.length} מקומות (${provider}) — מוצגים על המפה. לחיצה על סמל תציג הסבר קצר על המקום.` : `החיפוש ב-${provider} הצליח, אך לא נמצאו מקומות מתאימים בטווח שנבחר.`;
     } catch(error) {
+      if (error.name === 'AbortError' && gpsState==='on' && poiRequest===controller){
+        $('poiStatus').textContent='החיפוש עבר את מגבלת הזמן. מנסה שוב ברקע.';
+        $('v3DiscoveryStatus').textContent='השרתים לא הגיבו בזמן. ננסה שוב אוטומטית.';
+      }
       if (error.name !== 'AbortError') {
         console.warn('POI search failed', error);
         logSearch('שגיאה סופית: '+(error.message || error.name));
@@ -1211,6 +1219,7 @@
       $('v3DiscoveryStatus').textContent = v3Places.length?'מוצגות תגליות מהחיפוש הקודם · לא ניתן לרענן כרגע.':'לא ניתן לעדכן תגליות כרגע. אפשר לנסות שוב; אין זה בהכרח ניתוק אינטרנט.';
       }
     } finally {
+      clearTimeout(searchWatchdog);
       if (poiRequest === controller) { poiRequest = null; btn.disabled = false; }
     }
   }
@@ -1521,27 +1530,29 @@
     const {lat,lon}=currentPosition;
     v3LastAttemptAt=Date.now();
     $('v3DiscoveryStatus').textContent='מחפש תגליות מעניינות בסביבה...';
+    const v3291Start=Date.now();
     let success=false;
     try{
       $('poiCategory').value='all';
-      for(const radius of [300,700,1000]){
+      for(const radius of [700,1000]){
         if(token!==v3SearchToken||gpsState==='off')break;
         $('poiRadius').value=String(radius);
         v325SearchState(true,radius===300?'מחפש במרחק הליכה קצר...':radius===700?'מרחיב את החיפוש לעוד רחובות...':'בודק גם מקומות קצת רחוקים יותר...');
         const before=v329LastCompletedAt;
-        await discoverPlaces();
+        try{await discoverPlaces();}catch(error){logSearch('שגיאת חיפוש: '+error.message);}
         if(v329LastCompletedAt>before && v3Places.length){success=true;}
-        if(v3Places.length>=5)break;
+        if(v3Places.length>=1)break;
       }
       if(success){
         v3LastSearch={lat,lon,count:(v3LastSearch?.count||0)+1};
         v3LastSuccessAt=Date.now();
       }else{
-        $('v3DiscoveryStatus').textContent='החיפוש עדיין לא החזיר תגליות. SIDEWALK תנסה שוב אוטומטית.';
+        $('v3DiscoveryStatus').textContent='לא התקבלו תגליות מהשרתים. ניסיון חוזר אוטומטי בעוד 20 שניות.';
       }
     }finally{
       v325SearchState(false);
       v3SearchRunning=false;
+      logSearch('משך סבב חיפוש: '+((Date.now()-v3291Start)/1000).toFixed(1)+' שניות');
       if(v322RevealPending){v322RevealPending=false;v3RenderDiscoveries(true);}
       if(!success && gpsState==='on' && token===v3SearchToken){
         v3RetryTimer=setTimeout(()=>{v3RetryTimer=null;v3AutoDiscover();},20000);
