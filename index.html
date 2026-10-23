@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK — Your Local Friend (V3.2 Visual Beta)</title>
+  <title>SIDEWALK — Urban Pulse V3.4.0 Beta</title>
   <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
   <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="SIDEWALK">
-  <meta name="theme-color" content="#062c46">
+  <meta name="theme-color" content="#163a62">
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -420,6 +420,43 @@
     .v328-audio-status{margin:8px 0;background:#e8f0f8;color:#244c76;padding:10px;border-radius:12px;font-size:12px}
     .v328-audio-status[hidden]{display:none}
     @media(max-width:360px){.v328-list .discovery-art{flex-basis:86px;width:86px}.v328-controls{gap:5px}}
+
+/* SIDEWALK V3.4.0 — Urban Pulse visual layer only. V3.3 search/GPS/Supabase logic unchanged. */
+:root{--navy:#163a62;--teal:#00c9b7;--sea:#2563eb;--mist:#e7faf8;--pulse-lime:#c7f464}
+body{background:linear-gradient(180deg,#e5fbfa 0,#f7fafc 260px,#f7fafc 100%);color:#163a62}
+.card{border:1px solid #e3eef2;box-shadow:0 7px 24px #163a6210}
+.hero{background:linear-gradient(125deg,#102b4c 0%,#163a62 54%,#087e91 100%);box-shadow:0 12px 30px #123a6130}
+.hero h1 span{color:#58f0df}.hero .sub,.version-tag{color:#c5f6ef}
+.hero .status{background:#ffffff1c;border-color:#ffffff35}
+h2,.v3-intro h2{color:#163a62}
+#startBtn,.discover-btn,.gps-toggle:not(.off),.v3-action{background:linear-gradient(105deg,#00a99f,#00c9b7)!important;color:#073b45!important;box-shadow:0 6px 18px #00b7aa30}
+#stopBtn{background:#eaf2f7;color:#163a62}
+.v3-section{background:linear-gradient(160deg,#f0fffc 0%,#fff 43%,#f3f8ff 100%);border-color:#d7f1ed;box-shadow:0 15px 36px #163a6212}
+.v3-intro h2{background:none!important;-webkit-text-fill-color:#163a62!important;color:#163a62!important}
+.v3-intro p,.v3-note{color:#56778a}
+.v3-pill{background:#fff;border-color:#ccece9;color:#087e87}
+.v3-pill.active{background:#2563eb!important;color:#fff!important;border-color:#2563eb;box-shadow:0 5px 14px #2563eb2c}
+.discover-controls select,.v328-controls select,.v328-view{border-color:#cce8eb;background:#fff;color:#163a62}
+.v328-view button{color:#163a62}.v328-view button.active{background:#2563eb;color:#fff}
+.discovery-card{border-color:#dcebf0;box-shadow:0 9px 25px #163a6216;background:#fff}
+.discovery-card:hover{box-shadow:0 15px 32px #163a6226}
+.discovery-card:focus-visible,.gps-toggle:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+.discovery-card .body{background:#fff}.discovery-card strong{color:#163a62}.discovery-card small{color:#627d90}
+.discovery-card .why{color:#087f83;background:#e8faf7}
+.discovery-art .featured-label{background:#2563ebef}.discovery-art .category-chip{color:#163a62}
+.v325-search{background:linear-gradient(105deg,#e7faf8,#f2f7ff);border-color:#c9ebe9}
+.v325-orbit{border-color:#c7f0eb;border-top-color:#2563eb;border-right-color:#00b9ac}.v325-core{color:#00a99f}
+.sheet-primary,#storyPlay{background:linear-gradient(105deg,#00a99f,#00c9b7)!important;color:#073b45!important;box-shadow:0 6px 17px #00b9ac30}
+.sheet-secondary,.v3-story-actions button{background:#e8faf7;color:#087e87}
+.sheet-category{background:#e5faf6;color:#087e87}.travel-sheet h2{color:#163a62}
+.poi-item{border-right-color:#00b9ac;background:#f8fcfd}.poi-item:active{background:#e7faf8}
+.place-details{background:#f8fcfd;border-color:#d5efed}.place-details a{color:#2563eb}
+.leaflet-popup-content button{background:#00a99f;color:#073b45}
+#v328More{background:#e7faf8;border-color:#c4e9e4;color:#087e87}
+.v328-audio-status{background:#e8faf7;color:#087e87}
+.v3-toast{background:#163a62}
+@media(prefers-reduced-motion:reduce){.discovery-card,.discovery-art img{transition:none!important}}
+
 </style>
 </head>
 
