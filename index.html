@@ -362,7 +362,7 @@
     @media(prefers-reduced-motion:reduce){.v325-orbit,.v325-core{animation:none}}
 
 
-    /* V3.2.9.1 Smart Places: Urban Explorer styling retained, preserving application logic */
+    /* V3.3.0 Smart Places: Urban Explorer styling retained, preserving application logic */
     :root{--navy:#19344f;--teal:#356ea5;--sea:#244c76;--mist:#e8f0f8}
     body{background:linear-gradient(180deg,#e9f1f8 0,#f2f5f8 280px,#f5f7fa 100%);color:#19344f}
     .hero{background:linear-gradient(125deg,#152f4b,#244c76 76%,#356ea5);box-shadow:0 9px 26px #19344f25}
@@ -399,7 +399,7 @@
     @media(min-width:620px){.featured .discovery-art{height:340px}}
 
 
-    /* V3.2.9.1: compact, photo-led discovery list */
+    /* V3.3.0: compact, photo-led discovery list */
     .v328-controls{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:14px 0 12px;color:#19344f;font-weight:700;font-size:13px}
     .v328-controls select,.v328-view{background:#fff;border:1px solid #d9e3ee;border-radius:12px;padding:10px;color:#244c76}
     .v328-view{display:flex;padding:3px;margin-inline-start:auto}
@@ -436,7 +436,7 @@
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.2.9.1 SMART PLACES BETA · SIDEWALK</div>
+    <div class="version-tag">V3.3.0 SMART PLACES BETA · SIDEWALK</div>
   </section>
 
   <section class="card legacy-location">
@@ -488,9 +488,7 @@
     <button class="discover-btn" id="discoverBtn" type="button">🔎 גלה מה סביבי</button>
     <details style="margin-top:12px;font-size:13px;color:#355469" id="searchSettings">
       <summary style="cursor:pointer;font-weight:700">⚙️ הגדרות חיפוש ואבחון</summary>
-      <label for="geoapifyKey" style="display:block;margin:10px 0 5px">מפתח Geoapify (לא חובה)</label>
-      <input id="geoapifyKey" type="password" autocomplete="off" placeholder="Geoapify API key" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:10px;direction:ltr" />
-      <div style="margin-top:5px;font-size:12px">עם מפתח: Geoapify ראשי ו-Overpass גיבוי. ללא מפתח: Overpass בלבד. מפתח המוזן באתר סטטי חשוף בדפדפן; מומלץ להגביל אותו לדומיין באתר Geoapify.</div>
+      <div style="margin-top:10px;font-size:12px">מקור התגליות הראשי: Geoapify דרך Supabase (ללא חשיפת מפתח Geoapify בדפדפן). Overpass משמש גיבוי.</div>
       <pre id="searchDiagnostics" style="white-space:pre-wrap;direction:rtl;text-align:right;background:#edf5f7;padding:10px;border-radius:10px;font-size:12px;max-height:190px;overflow:auto">טרם בוצע חיפוש.</pre>
     </details>
     <div id="poiStatus" class="poi-info" role="status">ממתין למיקום.</div>
@@ -960,6 +958,34 @@
     return `[out:json][timeout:15];(${parts.join('')});out center 250;`;
   }
 
+  // SIDEWALK V3.3 PILOT: Fill in the public project URL and legacy anon JWT below.
+  // Never paste the Geoapify secret or a Supabase service_role key into this file.
+  const SIDEWALK_SUPABASE_URL = 'https://igpejozuksigtwwjxvdi.supabase.co';
+  const SIDEWALK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlncGVqb3p1a3NpZ3R3d2p4dmRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3MzYwOTcsImV4cCI6MjEwODMxMjA5N30.BYaBFFXtqwBhwXWt7XZtzjhpAkLzr_EfAZfUPl1WJ78';
+  function sidewalkProxyReady(){
+    return SIDEWALK_SUPABASE_URL.startsWith('https://') &&
+      !SIDEWALK_SUPABASE_URL.includes('PASTE_') &&
+      SIDEWALK_SUPABASE_ANON_KEY.startsWith('eyJ');
+  }
+  function normalizeProxyPlaces(data,lat,lon){
+    // Adapt the deployed Edge Function's {places:[...]} response to existing UI.
+    const features=(data.places||[]).map(p=>({
+      properties:{place_id:p.id,name:p.name,categories:p.categories||[]},
+      geometry:{coordinates:[p.lon,p.lat]}
+    }));
+    return normalizeGeoapify({features},lat,lon);
+  }
+  async function fetchSidewalkPlaces(lat,lon,radius,signal){
+    const url=SIDEWALK_SUPABASE_URL.replace(/\/$/,'')+'/functions/v1/sidewalk-places';
+    const response=await fetchWithTimeout(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',apikey:SIDEWALK_SUPABASE_ANON_KEY,
+        Authorization:'Bearer '+SIDEWALK_SUPABASE_ANON_KEY},
+      body:JSON.stringify({lat,lon,radius})
+    },signal,10000);
+    if(!response.ok) throw new Error('Supabase HTTP '+response.status);
+    return normalizeProxyPlaces(await response.json(),lat,lon);
+  }
   const geoapifyCategoryMap = {
     all:'catering,commercial.shopping_mall,commercial.gift_and_souvenir,commercial.clothing,commercial.books,tourism.sights,tourism.attraction,entertainment,culture,leisure.park',
     food:'catering', shopping:'commercial.shopping_mall,commercial.gift_and_souvenir,commercial.clothing,commercial.books',
@@ -1056,7 +1082,7 @@
     try {return await fetch(url,{...options,signal:attempt.signal});}
     finally {clearTimeout(timer);parentSignal.removeEventListener('abort',onAbort);}
   }
-  // V3.2.9.1: small, bounded in-memory cache for nearby POI queries.
+  // V3.3.0: small, bounded in-memory cache for nearby POI queries.
   const v329Cache=new Map();
   let v329LastCompletedAt=0;
   function v329CacheKey(lat,lon,category,radius,key){
@@ -1139,7 +1165,7 @@
     const category = $('poiCategory').value;
     const radius = Number($('poiRadius').value);
     const {lat, lon} = currentPosition;
-    const key = $('geoapifyKey').value.trim();
+    const key = sidewalkProxyReady() ? 'supabase-v3.3' : '';
     const cacheKey=v329CacheKey(lat,lon,category,radius,key);
     const cached=v329ReadCache(cacheKey);
     diagnostics.length=0;
@@ -1156,19 +1182,15 @@
       if(key) {
         const start=performance.now();
         try {
-          $('poiStatus').textContent='מחפש באמצעות Geoapify...';
-          const params=new URLSearchParams({categories:geoapifyCategoryMap[category] || geoapifyCategoryMap.all,
-            filter:`circle:${lon},${lat},${radius}`,bias:`proximity:${lon},${lat}`,limit:'100',apiKey:key});
-          const response=await fetchWithTimeout('https://api.geoapify.com/v2/places?'+params.toString(),{},controller.signal,8000);
-          if(!response.ok) throw new Error('HTTP '+response.status);
-          places=normalizeGeoapify(await response.json(),lat,lon);
-          provider='Geoapify';
-          logSearch(`Geoapify: ${places.length} תוצאות, ${((performance.now()-start)/1000).toFixed(1)} שניות`);
+          $('poiStatus').textContent='מחפש באמצעות SIDEWALK / Geoapify...';
+          places=await fetchSidewalkPlaces(lat,lon,radius,controller.signal);
+          provider='Geoapify via Supabase';
+          logSearch(`Supabase / Geoapify: ${places.length} תוצאות, ${((performance.now()-start)/1000).toFixed(1)} שניות`);
         } catch(error) {
           if(controller.signal.aborted) throw error;
-          logSearch('Geoapify נכשל: '+(error.name==='AbortError'?'חריגה מזמן המתנה':error.message));
+          logSearch('Supabase / Geoapify נכשל: '+(error.message||error.name));
         }
-      } else logSearch('לא הוגדר מפתח Geoapify — משתמש ב-Overpass');
+      } else logSearch('לא הוגדר חיבור Supabase — משתמש ב-Overpass');
       if(!provider) {
         const query=buildOverpassQuery(category,radius,lat,lon);
         $('poiStatus').textContent='מחפש באמצעות Overpass (שרתי גיבוי במקביל)...';
