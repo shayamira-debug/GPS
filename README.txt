@@ -1,6 +1,2 @@
-SIDEWALK V3.5.1 — Compact Controls
-
-Change: Sort by, its dropdown, and List/Cards now share one horizontal row, including on narrow mobile screens.
-No changes to discovery logic, Supabase, Geoapify, GPS, or icons.
-
-Upload index.html and existing assets to your test GitHub Pages deployment. Keep V3.3 backup.
+SIDEWALK V3.5.2 Smart Stories Beta
+Based on V3.5.1. Adds opt-in audio only for substantial verified Wikipedia extracts; tries nearby geotagged historical landmarks for cafes and other places; explicitly labels nearby stories, never conflates them with a business. No changes to Supabase / Geoapify / GPS. This is an experimental client-side Wikipedia enrichment, not AI narration or business verification. Test in a separate GitHub Pages environment.

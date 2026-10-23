@@ -631,7 +631,7 @@ h2,.v3-intro h2{color:#171d59!important;-webkit-text-fill-color:#171d59!importan
     <div id="travelPhoto" class="sheet-photo" hidden></div>
     <p id="travelSummary" class="sheet-summary" aria-live="polite"></p>
     <div id="travelSource" class="sheet-source"></div>
-    <div class="v3-story-actions"><button id="storyPlay" type="button">▶ Listen</button><button id="storyExpand" type="button">📖 Read more</button></div>
+    <div class="v3-story-actions"><button id="storyPlay" type="button" hidden>▶ Listen</button><button id="storyExpand" type="button" hidden>📖 Read more</button></div>
     <div id="storyExtra" hidden></div>
     <div id="storyAsk"><input id="storyQuestion" placeholder="Ask about this place..." aria-label="Question about this place"><button id="storyAskBtn" class="sheet-secondary" type="button">Ask</button></div>
     <div id="storyAnswer" aria-live="polite"></div>
@@ -1361,6 +1361,41 @@ h2,.v3-intro h2{color:#171d59!important;-webkit-text-fill-color:#171d59!importan
     activeTravelPlace=null;
     if (window.speechSynthesis) speechSynthesis.cancel();
   }
+  // Context-aware, opt-in stories: a nearby landmark is never described as the cafe itself.
+  const nearbyStoryCache = new Map();
+  function storyEligible(info) { return Boolean(info?.fullText && info.fullText.trim().length >= 180); }
+  function updateStoryActions() {
+    const playable = storyEligible(v3CurrentInfo);
+    $('storyPlay').hidden = !playable;
+    $('storyExpand').hidden = !playable;
+    if (!playable) $('storyExtra').hidden = true;
+  }
+  async function getNearbyLandmarkStory(place) {
+    if (!Number.isFinite(Number(place.lat)) || !Number.isFinite(Number(place.lon))) return null;
+    const key = `${Math.round(place.lat*10000)}:${Math.round(place.lon*10000)}`;
+    if (nearbyStoryCache.has(key)) return nearbyStoryCache.get(key);
+    const task = (async () => {
+      // Wikipedia GeoSearch returns geotagged pages, not proof of an association with the business.
+      const data = await wikiAPI('en', {
+        list:'geosearch', gscoord:`${place.lat}|${place.lon}`, gsradius:'180', gslimit:'8',
+        gsnamespace:'0', gsprop:'type|name|dim'
+      });
+      const candidates = (data.query?.geosearch || []).filter(x =>
+        x.dist <= 180 && !/^(list of|category:)/i.test(x.title) &&
+        normalizedPlaceName(x.title) !== normalizedPlaceName(place.name)
+      );
+      // Avoid attaching stories about unrelated small businesses or generic neighborhood pages.
+      const landmarkPattern = /square|plaza|palace|museum|monument|memorial|church|cathedral|synagogue|castle|fortress|theatre|theater|bridge|historic|hall|statue|market|park|garden|basilica|temple|building|street|boulevard|station|library|opera|university|כיכר|מוזיאון|ארמון|אנדרטה/iu;
+      const candidate = candidates.find(x => landmarkPattern.test(x.title));
+      if (!candidate) return null;
+      const details = await wikiAPI('en', {prop:'extracts|pageimages|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'1050',piprop:'thumbnail',pithumbsize:'650',titles:candidate.title,redirects:'1'});
+      const page = Object.values(details.query?.pages || {})[0];
+      if (!page?.extract || page.extract.length < 180 || page.missing !== undefined) return null;
+      return {text:shortDescription(page.extract),fullText:page.extract,image:null,lang:'en',title:page.title,nearby:true,distance:Math.round(candidate.dist),url:page.fullurl||`https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g,'_'))}`};
+    })();
+    nearbyStoryCache.set(key,task);
+    try {return await task;} catch(e) {nearbyStoryCache.delete(key);return null;}
+  }
   async function openTravelSheet(place) {
     const token=++travelSheetToken;
     activeTravelPlace=place;
@@ -1371,16 +1406,26 @@ h2,.v3-intro h2{color:#171d59!important;-webkit-text-fill-color:#171d59!importan
     $('travelSummary').textContent='Looking up information about this place...';
     $('travelSource').textContent='';
     $('storyExtra').hidden=true; $('storyExtra').textContent=''; $('storyAnswer').textContent=''; $('storyQuestion').value='';
-    v3CurrentInfo=null; v3StoryExpanded=false; $('storyPlay').textContent='▶ Listen';
+    v3CurrentInfo=null; v3StoryExpanded=false; $('storyPlay').textContent='▶ Listen'; updateStoryActions();
     $('travelPhoto').replaceChildren();$('travelPhoto').hidden=true;
     $('travelBackdrop').hidden=false;$('travelSheet').hidden=false;
     try {
-      const info=await getShortPlaceInfo(place);
+      const directInfo=await getShortPlaceInfo(place);
       if(token!==travelSheetToken) return;
-      $('travelSummary').textContent=info?.text || place.tags['description:he'] || place.tags.description ||
-        `A ${category.label.toLowerCase()} approximately ${place.distance} m away. No additional verified description is available.`;
+      let info=directInfo;
+      if(!storyEligible(info)) {
+        $('travelSummary').textContent=directInfo?.text || place.tags.description || 'Looking for a story about the surrounding area...';
+        info=await getNearbyLandmarkStory(place);
+        if(token!==travelSheetToken) return;
+        if(!info) info=directInfo;
+      }
+      $('travelSummary').textContent=info?.nearby
+        ? `Nearby story · ${info.title} (${info.distance} m away): ${info.text}`
+        : info?.text || place.tags['description:he'] || place.tags.description ||
+          `A ${category.label.toLowerCase()} approximately ${place.distance} m away. No additional verified description is available.`;
       v3CurrentInfo=info;
-      $('travelSource').textContent=info?'Source: Wikipedia':'Place data: OpenStreetMap';
+      updateStoryActions();
+      $('travelSource').textContent=info?.nearby?'Nearby landmark · Source: Wikipedia (not a story about this business)':info?'Source: Wikipedia':'Place data: OpenStreetMap';
       if(info?.image) {
         const img=document.createElement('img');img.src=info.image;img.alt='Photo of '+place.name;img.loading='lazy';
         $('travelPhoto').append(img);$('travelPhoto').hidden=false;
@@ -1389,6 +1434,7 @@ h2,.v3-intro h2{color:#171d59!important;-webkit-text-fill-color:#171d59!importan
       if(token!==travelSheetToken) return;
       $('travelSummary').textContent=place.tags['description:he'] || place.tags.description || `No verified description is available yet.`;
       $('travelSource').textContent='Place data: OpenStreetMap';
+      updateStoryActions();
     }
   }
   $('travelClose').addEventListener('click',closeTravelSheet);
@@ -1614,7 +1660,7 @@ h2,.v3-intro h2{color:#171d59!important;-webkit-text-fill-color:#171d59!importan
       const body=document.createElement('span');body.className='body';
       const title=document.createElement('strong');title.textContent=place.name;
       const meta=document.createElement('small');meta.textContent=placeDetailLabel(place)+' · '+(index===0?'A place worth discovering nearby':'Discover something new nearby');
-      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 Discover the story behind this place':'✨ Discover what makes this place special ←';
+      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 Discover the story behind this place':'✨ Explore this place and its surroundings ←';
       body.append(title,meta,why);btn.append(art,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
       v32LoadPhoto(place,art);
       if(reveal){
@@ -1730,8 +1776,8 @@ h2,.v3-intro h2{color:#171d59!important;-webkit-text-fill-color:#171d59!importan
   $('storyPlay').addEventListener('click',()=>{
     if(!('speechSynthesis' in window)){v3Toast('Your browser does not support text-to-speech.');return;}
     if(speechSynthesis.speaking){speechSynthesis.cancel();$('storyPlay').textContent='▶ Listen';return;}
-    const text=$('travelSummary').textContent;
-    if(!v3CurrentInfo || !v3CurrentInfo.fullText || v3CurrentInfo.fullText.length<180){v3Toast('No extended verified story to play yet.');return;}
+    const text=v3CurrentInfo?.nearby ? `${v3CurrentInfo.title}. ${v3CurrentInfo.fullText}` : (v3CurrentInfo?.fullText || $('travelSummary').textContent);
+    if(!storyEligible(v3CurrentInfo)){v3Toast('No extended verified story to play yet.');return;}
     const u=new SpeechSynthesisUtterance(text);u.lang='en-US';u.rate=.94;
     u.onend=u.onerror=()=>$('storyPlay').textContent='▶ Listen';
     $('storyPlay').textContent='■ Stop';speechSynthesis.speak(u);
