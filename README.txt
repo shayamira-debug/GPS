@@ -1,7 +1,6 @@
-SIDEWALK V3.5 International Beta
+SIDEWALK V3.5.1 — Compact Controls
 
-Upload index.html, sidewalk-app-icon.png and sidewalk-gps-marker.png to a TEST GitHub Pages branch.
-Changes: English-first interface, new colorful logo, new visual identity. Existing Supabase / Geoapify and GPS logic retained.
-Not included: AI storytelling, new verification service, voice overhaul. Those remain future work.
-Security: Existing public anon key is unchanged. Edge Function rate limiting and authorization still require production hardening.
-Do not replace your working V3.3 until tested on your phone.
+Change: Sort by, its dropdown, and List/Cards now share one horizontal row, including on narrow mobile screens.
+No changes to discovery logic, Supabase, Geoapify, GPS, or icons.
+
+Upload index.html and existing assets to your test GitHub Pages deployment. Keep V3.3 backup.

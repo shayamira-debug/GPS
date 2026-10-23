@@ -519,6 +519,13 @@ h2,.v3-intro h2{color:#171d59!important;-webkit-text-fill-color:#171d59!importan
 @media(max-width:420px){.hero{padding:20px 18px 24px}.card:not(.hero){margin-left:10px;margin-right:10px;padding:15px}.hero h1{font-size:24px}.v35-title{font-size:36px}.v328-list .discovery-card{text-align:left}.v328-list .discovery-art{flex-basis:100px;width:100px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
+/* V3.5.1: keep Sort by and List/Cards on one responsive row */
+.v328-controls{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;gap:7px!important;width:100%;min-width:0}
+.v328-controls label{flex:0 0 auto;white-space:nowrap;font-size:12px}
+.v328-controls select{flex:1 1 auto;min-width:0;width:auto;max-width:100%;padding:9px 5px;font-size:12px;text-overflow:ellipsis}
+.v328-controls .v328-view{flex:0 0 auto;margin-inline-start:auto;white-space:nowrap;padding:3px}
+.v328-controls .v328-view button{padding:8px 7px;font-size:12px;white-space:nowrap}
+@media(max-width:370px){.v328-controls{gap:4px!important}.v328-controls label{font-size:11px}.v328-controls select{font-size:11px;padding:8px 3px}.v328-controls .v328-view button{padding:7px 5px;font-size:11px}}
 </style>
 </head>
 
