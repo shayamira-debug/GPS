@@ -575,6 +575,12 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
 @media(max-width:420px){.v328-list .discovery-art,.v328-list .featured .discovery-art{flex-basis:104px;width:104px}.v328-list .discovery-card .body{padding:12px}.v328-list .discovery-card strong{font-size:15px}}
 @media(max-width:360px){.v328-list .discovery-art,.v328-list .featured .discovery-art{flex-basis:90px;width:90px}}
 
+/* V3.5.4: more legible place details on mobile */
+.sheet-summary{font-size:17px!important;line-height:1.75!important;letter-spacing:.05px}
+#placeBody p{font-size:17px!important;line-height:1.75!important}
+#storyExtra{font-size:16px!important;line-height:1.75!important}
+#travelSummary:empty,#storyExtra:empty{display:none!important}
+@media(max-width:420px){.sheet-summary,#placeBody p{font-size:16.5px!important;line-height:1.7!important}}
 </style>
 </head>
 
@@ -1471,7 +1477,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       $('travelSummary').textContent=info?.nearby
         ? `Nearby story · ${info.title} (${info.distance} m away): ${info.text}`
         : info?.text || place.tags['description:he'] || place.tags.description ||
-          `A ${category.label.toLowerCase()} approximately ${place.distance} m away. No additional verified description is available.`;
+          `A ${category.label.toLowerCase()} approximately ${place.distance} m away.`;
       v3CurrentInfo=info;
       updateStoryActions();
       $('travelSource').textContent=info?.nearby?'Nearby landmark · Source: Wikipedia (not a story about this business)':info?'Source: Wikipedia':'Place data: OpenStreetMap';
@@ -1481,7 +1487,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       }
     } catch(error) {
       if(token!==travelSheetToken) return;
-      $('travelSummary').textContent=place.tags['description:he'] || place.tags.description || `No verified description is available yet.`;
+      $('travelSummary').textContent=place.tags['description:he'] || place.tags.description || '';
       $('travelSource').textContent='Place data: OpenStreetMap';
       updateStoryActions();
     }
@@ -1502,6 +1508,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
   }
 
   function placeParagraph(text) {
+    if (!text || !String(text).trim()) return;
     const p = document.createElement('p');
     p.textContent = text;
     $('placeBody').appendChild(p);
@@ -1608,7 +1615,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
         const source=document.createElement('p'); source.className='source';
         source.textContent='Source: Wikipedia. Details may be in the original language.'; $('placeBody').appendChild(source);
       } else {
-        placeParagraph(place.tags.description || place.tags['description:he'] || 'No verified encyclopedia entry was found.');
+        placeParagraph(place.tags.description || place.tags['description:he'] || '');
         placeParagraph(`Place type: ${place.kind} · Straight-line distance: ${place.distance} m`);
         const source=document.createElement('p'); source.className='source'; source.textContent='Place data: OpenStreetMap'; $('placeBody').appendChild(source);
       }
@@ -1820,7 +1827,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     v3StoryExpanded=!v3StoryExpanded;
     $('storyExtra').hidden=!v3StoryExpanded;
     $('storyExpand').textContent=v3StoryExpanded?'📖 Show less':'📖 Read more';
-    if(v3StoryExpanded)$('storyExtra').textContent=v3CurrentInfo?.fullText||'No verified extended story is available. Open the source for more information.';
+    if(v3StoryExpanded)$('storyExtra').textContent=v3CurrentInfo?.fullText||'';
   });
   $('storyPlay').addEventListener('click',()=>{
     if(!('speechSynthesis' in window)){v3Toast('Your browser does not support text-to-speech.');return;}
