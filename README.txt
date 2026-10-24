@@ -1,2 +1,7 @@
-SIDEWALK V3.5.2 Smart Stories Beta
-Based on V3.5.1. Adds opt-in audio only for substantial verified Wikipedia extracts; tries nearby geotagged historical landmarks for cafes and other places; explicitly labels nearby stories, never conflates them with a business. No changes to Supabase / Geoapify / GPS. This is an experimental client-side Wikipedia enrichment, not AI narration or business verification. Test in a separate GitHub Pages environment.
+SIDEWALK V3.5.3 — Soft Dark Premium
+
+Visual-only update based on V3.5.2 Smart Stories Beta.
+Soft navy/graphite dark theme, photo-led discovery results, refined typography and high-contrast cards.
+GPS, Geoapify/Supabase integration, Smart Stories, List/Cards and Sort controls remain unchanged.
+Upload all files to a test GitHub Pages deployment. Keep your prior working release as backup.
+Not field-tested.
