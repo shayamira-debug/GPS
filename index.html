@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK — Explore More · V3.6 Beta</title>
+  <title>SIDEWALK — Explore More · V3.6.1 Beta</title>
   <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
   <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -626,6 +626,32 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
 .v36-mode.active small{color:#f3efff}
 @media(max-width:360px){.v36-mode{padding:8px 3px}.v36-mode span{font-size:11px}.v36-mode small{font-size:9px}}
 
+
+/* V3.6.1 Discovery Cards 2.0 — presentation only; GPS/search/ranking untouched */
+.discovery-card.sw361-cafe{--sw361-accent:#e6b781;--sw361-accent-soft:#493b37;--sw361-ink:#f7dec0;border-color:#715746!important}
+.discovery-card.sw361-park{--sw361-accent:#83d9b3;--sw361-accent-soft:#25473f;--sw361-ink:#c7f3db;border-color:#416b5b!important}
+.discovery-card.sw361-cafe .body{background:linear-gradient(145deg,#342e36,#282c3b)!important}
+.discovery-card.sw361-park .body{background:linear-gradient(145deg,#223d3d,#253444)!important}
+.discovery-card.sw361-cafe .category-chip{background:#f6d6a8ee!important;color:#54351f!important}
+.discovery-card.sw361-park .category-chip{background:#bcecd3ee!important;color:#174b39!important}
+.discovery-card.sw361-cafe .why,.discovery-card.sw361-park .why{background:var(--sw361-accent-soft)!important;color:var(--sw361-ink)!important;border:1px solid color-mix(in srgb,var(--sw361-accent) 24%,transparent);border-radius:12px;padding:9px 11px;font-size:12px!important}
+.discovery-card.sw361-cafe strong,.discovery-card.sw361-park strong{font-size:18px!important;letter-spacing:-.3px}
+.discovery-card.sw361-cafe .distance-chip,.discovery-card.sw361-park .distance-chip{background:#111827df!important;border:1px solid #ffffff44!important}
+.discovery-card.sw361-cafe .discovery-art,.discovery-card.sw361-park .discovery-art{height:205px}
+.discovery-card.sw361-cafe.featured .discovery-art,.discovery-card.sw361-park.featured .discovery-art{height:255px}
+.discovery-card.sw361-cafe .discovery-art img,.discovery-card.sw361-park .discovery-art img{filter:saturate(1.12) contrast(1.045) brightness(.96)}
+.discovery-card.sw361-cafe .discovery-art::after,.discovery-card.sw361-park .discovery-art::after{content:'';display:block!important;position:absolute;inset:auto 0 0!important;width:100%!important;height:45%!important;left:0!important;top:auto!important;right:0!important;bottom:0!important;border:0!important;border-radius:0!important;background:linear-gradient(transparent,#0e18258c)!important;z-index:3!important;pointer-events:none}
+.discovery-card.sw361-cafe .featured-label{background:#9c633de8!important}.discovery-card.sw361-park .featured-label{background:#297d61e8!important}
+.discovery-card.sw361-cafe:hover,.discovery-card.sw361-park:hover{box-shadow:0 13px 35px #020711c9,0 0 0 1px var(--sw361-accent)!important}
+/* List stays compact and uses a side thumbnail rather than a hero photo. */
+.v328-list .discovery-card.sw361-cafe,.v328-list .discovery-card.sw361-park{min-height:112px!important}
+.v328-list .discovery-card.sw361-cafe .discovery-art,.v328-list .discovery-card.sw361-park .discovery-art,
+.v328-list .discovery-card.sw361-cafe.featured .discovery-art,.v328-list .discovery-card.sw361-park.featured .discovery-art{flex:0 0 110px!important;width:110px!important;height:auto!important;min-height:112px!important}
+.v328-list .discovery-card.sw361-cafe .body,.v328-list .discovery-card.sw361-park .body{padding:13px 14px!important;justify-content:center}
+.v328-list .discovery-card.sw361-cafe strong,.v328-list .discovery-card.sw361-park strong{font-size:16px!important}
+.v328-list .discovery-card.sw361-cafe .why,.v328-list .discovery-card.sw361-park .why{display:none!important}
+@media(max-width:380px){.v328-list .discovery-card.sw361-cafe .discovery-art,.v328-list .discovery-card.sw361-park .discovery-art,.v328-list .discovery-card.sw361-cafe.featured .discovery-art,.v328-list .discovery-card.sw361-park.featured .discovery-art{flex-basis:94px!important;width:94px!important}}
+@media(prefers-reduced-motion:reduce){.discovery-card.sw361-cafe,.discovery-card.sw361-park{transition:none!important}}
 </style>
 </head>
 
@@ -642,7 +668,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.6 SMART DISCOVERY BETA · EXPLORE MORE</div>
+    <div class="version-tag">V3.6.1 DISCOVERY CARDS BETA · EXPLORE MORE</div>
   </section>
 
   <section class="card legacy-location">
@@ -1768,10 +1794,15 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     if(!items.length){const p=document.createElement('p');p.className='v3-note';p.textContent=v3Places.length?'No places match this filter. Try Explore all.':'No discoveries found in this area. Refresh or keep walking.';host.append(p);return;}
     items.forEach((place,index)=>{
       const category=classifyPlace(place);
-      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');btn.style.setProperty('--enter-delay',reveal?'0ms':Math.min(index*65,260)+'ms');
+      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');
+      const categoryLabel=String(category.label||'').toLowerCase();
+      const rawKind=[place.tags?.amenity,place.tags?.leisure,place.tags?.shop,place.tags?.tourism,place.kind].filter(Boolean).join(' ').toLowerCase();
+      const isCafe=/caf[eé]|coffee|bakery|pastry/.test(categoryLabel+' '+rawKind);
+      const isPark=/park|garden|nature|botanical|green_space/.test(categoryLabel+' '+rawKind);
+      if(isCafe)btn.classList.add('sw361-cafe');else if(isPark)btn.classList.add('sw361-park');btn.style.setProperty('--enter-delay',reveal?'0ms':Math.min(index*65,260)+'ms');
       const art=document.createElement('span');art.className='discovery-art';
       const kind=(place.tags?.historic||place.tags?.tourism||place.tags?.amenity||place.tags?.shop||'').toLowerCase();
-      const palette=/restaurant|cafe|food|bakery/.test(kind)?['#ffb467','#ff6e7d']:/bar|pub|nightclub/.test(kind)?['#ac83ed','#ed6dba']:/park|garden|nature/.test(kind)?['#7bdaa0','#1aa9a3']:/shop|market/.test(kind)?['#ffcf70','#f57d71']:['#6fbce9','#9e82e9'];
+      const palette=isCafe?['#a66a38','#e0b57e']:isPark?['#1d795e','#74bca3']:/restaurant|food/.test(kind)?['#ffb467','#ff6e7d']:/bar|pub|nightclub/.test(kind)?['#ac83ed','#ed6dba']:/shop|market/.test(kind)?['#ffcf70','#f57d71']:['#6fbce9','#9e82e9'];
       art.style.setProperty('--tone1',palette[0]);art.style.setProperty('--tone2',palette[1]);
       const em=document.createElement('span');em.className='em';em.textContent=category.emoji;
       const chip=document.createElement('span');chip.className='category-chip';chip.textContent=placeDetailLabel(place);
@@ -1780,8 +1811,8 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       if(index===0){const featuredLabel=document.createElement('span');featuredLabel.className='featured-label';featuredLabel.textContent='✨ Featured discovery';art.append(featuredLabel);}
       const body=document.createElement('span');body.className='body';
       const title=document.createElement('strong');title.textContent=place.name;
-      const meta=document.createElement('small');meta.textContent=placeDetailLabel(place)+' · '+(index===0?'A place worth discovering nearby':'Discover something new nearby');
-      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 Discover the story behind this place':'✨ Explore this place and its surroundings ←';
+      const meta=document.createElement('small');meta.textContent=placeDetailLabel(place)+(isCafe?' · Coffee & cafés':isPark?' · Parks & gardens':'');
+      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 Discover the story behind this place':isCafe?'☕ View café details':isPark?'🌿 Explore this green space':'✨ Explore this place and its surroundings ←';
       body.append(title,meta,why);btn.append(art,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
       v32LoadPhoto(place,art);
       if(reveal){
