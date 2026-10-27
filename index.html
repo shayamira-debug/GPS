@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK — Explore More · V3.5.5 Beta</title>
+  <title>SIDEWALK — Explore More · V3.6 Beta</title>
   <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
   <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -612,6 +612,20 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
 @keyframes swBubbleFade{from{opacity:0}to{opacity:1}}
 @media(max-width:420px){.travel-sheet{width:calc(100% - 22px)!important;border-radius:24px!important;padding:17px 17px max(20px,env(safe-area-inset-bottom))!important;max-height:85dvh!important}}
 @media(prefers-reduced-motion:reduce){.travel-sheet,.travel-backdrop{animation:none!important}}
+
+/* V3.6: Discovery mode selector; no changes to search provider or GPS. */
+.v36-mode-wrap{margin:12px 0 14px;padding:13px;border:1px solid #46536f;border-radius:18px;background:linear-gradient(130deg,#27344c,#202b40)}
+.v36-mode-heading{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 12px;margin-bottom:10px;color:#f4f5ff}
+.v36-mode-heading strong{font-size:15px}
+.v36-mode-heading span{font-size:12px;color:#c5d0e5}
+.v36-mode-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.v36-mode{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:67px;padding:9px 5px;border:1px solid #4c5874;border-radius:13px;background:#303d55;color:#eef3ff;cursor:pointer;text-align:center}
+.v36-mode span{font-size:13px;font-weight:750;white-space:nowrap}
+.v36-mode small{font-size:10px;line-height:1.2;color:#b9c5dc}
+.v36-mode.active{border-color:#b5a1ff;background:linear-gradient(135deg,#5b47a0,#334e7b);box-shadow:0 0 0 1px #b5a1ff40}
+.v36-mode.active small{color:#f3efff}
+@media(max-width:360px){.v36-mode{padding:8px 3px}.v36-mode span{font-size:11px}.v36-mode small{font-size:9px}}
+
 </style>
 </head>
 
@@ -628,7 +642,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.5.5 INTERNATIONAL BETA · EXPLORE MORE</div>
+    <div class="version-tag">V3.6 SMART DISCOVERY BETA · EXPLORE MORE</div>
   </section>
 
   <section class="card legacy-location">
@@ -656,6 +670,14 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
 
   <section class="card v3-section" id="discoverySection">
     <div class="v3-intro"><h2>✨ Something amazing is nearby.</h2><p>Discover unique places, real stories and surprises around you.</p></div>
+    <div class="v36-mode-wrap" aria-label="Discovery mode">
+      <div class="v36-mode-heading"><strong>Discover your way</strong><span id="v36ModeHint">A balanced mix of nearby places and interesting discoveries.</span></div>
+      <div class="v36-mode-buttons" role="group" aria-label="Choose discovery mode">
+        <button class="v36-mode" type="button" data-discovery-mode="explore" aria-pressed="false"><span>🧭 Explore</span><small>Hidden gems & stories</small></button>
+        <button class="v36-mode" type="button" data-discovery-mode="nearby" aria-pressed="false"><span>📍 Nearby</span><small>Everything around you</small></button>
+        <button class="v36-mode active" type="button" data-discovery-mode="smart" aria-pressed="true"><span>✨ Smart Mix</span><small>The best of both</small></button>
+      </div>
+    </div>
     <div id="v3Focus" class="v3-toolbar"><button class="v3-pill active" data-focus="all">✨ Explore all</button><button class="v3-pill" data-focus="history">🏛️ Stories</button><button class="v3-pill" data-focus="food">☕ Food & cafés</button><button class="v3-pill" data-focus="nightlife">🌙 Nightlife</button><button class="v3-pill" data-focus="shopping">🛍️ Markets & shops</button></div>
     <div id="v325Searching" class="v325-search" role="status" aria-live="polite" hidden><span class="v325-orbit" aria-hidden="true"><span class="v325-core">✦</span></span><span class="v325-search-copy"><strong id="v325SearchTitle">✨ Finding something special...</strong><small id="v325SearchDetail">Discovering places around you</small></span></div>
     <div class="v328-controls">
@@ -748,6 +770,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
   let detailsRequest = null;
   let v3Places = [];
   let v3Focus = 'all';
+  let v36Mode = 'smart'; // Session-only choice; no persistent profile.
   let v3Language = 'en';
   let v3SoundEnabled = true;
   let v328Sort='recommended',v328View='list',v328Limit=10;
@@ -1670,9 +1693,20 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     if(c.label==='Shopping mall' && p.distance<=350) score+=65;
     return score;
   }
+  function v36ModeScore(p){
+    const base=v3Score(p), c=classifyPlace(p).label;
+    if(v36Mode==='explore'){
+      const story=Boolean(p.tags?.wikipedia||p.tags?.wikidata||p.tags?.historic||p.tags?.tourism);
+      const special=['History & culture','Monument & memorial','Viewpoint','Fountain','Arts & entertainment','Attraction'].includes(c);
+      return base+(special?125:0)+(story?65:0);
+    }
+    if(v36Mode==='nearby') return -p.distance + (c==='Shopping mall' && p.distance<=350?20:0);
+    return base;
+  }
   function v3Candidates() {
     const candidates=v3Places.filter(p=>v3Focus==='all'||isTravelPlace(p,v3Focus));
-    const sorted=[...candidates].sort((a,b)=>v3Score(b)-v3Score(a));
+    const sorted=[...candidates].sort((a,b)=>v36ModeScore(b)-v36ModeScore(a));
+    if(v36Mode==='nearby') return v328Sort==='recommended'?sorted:sorted.sort((a,b)=>a.distance-b.distance);
     const result=[], categories=new Set();
     for(const p of sorted){const c=classifyPlace(p).label;if(!categories.has(c)){result.push(p);categories.add(c);}if(result.length>=4)break;}
     for(const p of sorted){if(result.length>=40)break;if(!result.includes(p))result.push(p);}
@@ -1826,6 +1860,18 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     if(Date.now()-v3LastAttemptAt<12000)return;
     if(!v3LastSearch||distanceMeters(lat,lon,v3LastSearch.lat,v3LastSearch.lon)>=150)v3AutoDiscover();
   }
+  document.querySelectorAll('[data-discovery-mode]').forEach(button=>button.addEventListener('click',()=>{
+    v36Mode=button.dataset.discoveryMode;
+    document.querySelectorAll('[data-discovery-mode]').forEach(b=>{
+      const active=b===button;
+      b.classList.toggle('active',active);
+      b.setAttribute('aria-pressed',String(active));
+    });
+    const hints={explore:'Prioritizing stories, landmarks and hidden gems.',nearby:'Showing nearby places first, including shops and cafés.',smart:'A balanced mix of nearby places and interesting discoveries.'};
+    $('v36ModeHint').textContent=hints[v36Mode];
+    v328Limit=10;
+    v3RenderDiscoveries(false);
+  }));
   document.querySelectorAll('[data-focus]').forEach(button=>button.addEventListener('click',()=>{
     v3Focus=button.dataset.focus;
     document.querySelectorAll('[data-focus]').forEach(b=>b.classList.toggle('active',b===button));
