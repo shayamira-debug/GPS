@@ -803,6 +803,14 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
   const v328Sounded=new Set();
   const v328Queued=new Map();
   let v328SoundSequence=Promise.resolve();
+  let v37CrystalBuffer=null;
+  let v37LastChime=0;
+  const V37_CHIME_COOLDOWN=90000; // Avoid repeated interruptions while walking.
+  fetch('./sidewalk-crystal-discovery.wav').then(r=>{if(!r.ok)throw Error('Audio unavailable');return r.arrayBuffer();}).then(b=>{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const ctx=v322Audio||(v322Audio=new C());return ctx.decodeAudioData(b);}).then(b=>{v37CrystalBuffer=b;if(v328Queued.size)v328FlushSounds();}).catch(e=>console.warn('Crystal sound unavailable:',e));
+  function v37IsSpecial(place){
+    const c=classifyPlace(place);
+    return ['History & culture','Monument & memorial','Viewpoint','Attraction'].includes(c.label) && Boolean(place.tags?.wikipedia||place.tags?.wikidata||place.tags?.historic);
+  }
   function v328AudioStatus(message){
     const el=$('v328AudioStatus');if(!el)return;
     el.hidden=!message;el.textContent=message||'';
@@ -810,6 +818,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
   function v328QueueSound(place,index){
     const key=v322PlaceKey(place);
     if(v328Sounded.has(key)||v328Queued.has(key))return;
+    if(!v37IsSpecial(place))return;
     v328Queued.set(key,index);
   }
   async function v328FlushSounds(){
@@ -820,12 +829,14 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       return;
     }
     v328AudioStatus('');
-    const entries=[...v328Queued.entries()];v328Queued.clear();
+    const entries=[...v328Queued.entries()].slice(0,1);v328Queued.clear();
     v328SoundSequence=v328SoundSequence.then(async()=>{
       for(const [key,index] of entries){
         if(v328Sounded.has(key))continue;
         if(!v3SoundEnabled||document.visibilityState!=='visible'){v328Queued.set(key,index);continue;}
+        if(Date.now()-v37LastChime<V37_CHIME_COOLDOWN)continue;
         const played=v322PlayNote(index);
+        if(played)v37LastChime=Date.now();
         if(played){v328Sounded.add(key);await new Promise(resolve=>setTimeout(resolve,480));}
         else v328Queued.set(key,index);
       }
@@ -888,22 +899,14 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
   function v322PlaceKey(p){return String(p.id??`${p.name}:${p.lat.toFixed(5)}:${p.lon.toFixed(5)}`);}
   function v322PlayNote(index,force=false){
     if((!v3SoundEnabled&&!force)||document.visibilityState!=='visible'||!v322Audio||v322Audio.state!=='running')return false;
+    if(!v37CrystalBuffer)return false;
     try{
-      const ctx=v322Audio,now=ctx.currentTime;
-      // Soft two-tone bell: more audible than the previous 220ms sine ping.
-      for(const [offset,frequency,volume] of [[0,659.25,.13],[.12,987.77,.085]]){
-        const osc=ctx.createOscillator(),gain=ctx.createGain();
-        osc.type='sine';osc.frequency.value=frequency*Math.pow(2,(index%3)/12);
-        gain.gain.setValueAtTime(.0001,now+offset);
-        gain.gain.exponentialRampToValueAtTime(volume,now+offset+.025);
-        gain.gain.exponentialRampToValueAtTime(.0001,now+offset+.46);
-        osc.connect(gain);gain.connect(ctx.destination);
-        osc.start(now+offset);osc.stop(now+offset+.48);
-      }
+      const ctx=v322Audio,src=ctx.createBufferSource(),gain=ctx.createGain();
+      src.buffer=v37CrystalBuffer;gain.gain.value=.48;
+      src.connect(gain);gain.connect(ctx.destination);src.start();
       return true;
-    }catch(e){return false;}
+    }catch(e){console.warn('Crystal playback failed',e);return false;}
   }
-
 
 
   let lastGeocodeLat = null;
@@ -1548,12 +1551,9 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       const directInfo=await getShortPlaceInfo(place);
       if(token!==travelSheetToken) return;
       let info=directInfo;
-      if(!storyEligible(info)) {
-        $('travelSummary').textContent=directInfo?.text || place.tags.description || 'Looking for a story about the surrounding area...';
-        info=await getNearbyLandmarkStory(place);
-        if(token!==travelSheetToken) return;
-        if(!info) info=directInfo;
-      }
+      // Nearby landmarks are not automatically attributed to restaurants or shops.
+      // Only show a verified direct place story; otherwise use the POI category.
+      if(!storyEligible(info)) info=directInfo;
       $('travelSummary').textContent=info?.nearby
         ? `Nearby story · ${info.title} (${info.distance} m away): ${info.text}`
         : info?.text || place.tags['description:he'] || place.tags.description ||
@@ -1630,7 +1630,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       async function lookup(language, exactTitle) {
         const params = {prop:'extracts|pageimages',exintro:'1',explaintext:'1',exchars:'450',piprop:'thumbnail',pithumbsize:'650'};
         if (exactTitle) Object.assign(params,{titles:exactTitle,redirects:'1'});
-        else Object.assign(params,{generator:'search',gsrsearch:place.name,gsrlimit:'1'});
+        else return null; // Never search by name alone.
         const data = await wikiAPI(language,params);
         const page = Object.values(data.query?.pages || {})[0];
         if (!page?.extract || page.missing !== undefined) return null;
@@ -1639,8 +1639,8 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
         if (!exactTitle && (!requested || !pageName || !(pageName.includes(requested) || requested.includes(pageName)))) return null;
         return {text:shortDescription(page.extract),fullText:page.extract,image:page.thumbnail?.source || null,lang:language,title:page.title};
       }
-      let result = await lookup(lang,title);
-      if (!result && lang==='he' && !title) result = await lookup('en',null);
+      // Trusted content: only explicit Wikipedia tags supplied with this exact POI.
+      let result = title ? await lookup(lang,title) : null;
       return result;
     })();
     shortInfoCache.set(key,promise);
@@ -1654,7 +1654,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     $('placeCard').hidden = false;
     $('placeTitle').textContent = place.name;
     $('placeBody').replaceChildren();
-    placeParagraph('Looking for place details and photos...');
+    placeParagraph('Looking for verified place details...');
     $('placeCard').scrollIntoView({behavior:'smooth',block:'start'});
     try {
       // Use a direct Wikipedia link when OSM provides one; otherwise search by name.
@@ -1670,12 +1670,12 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
         if (pageTitle) {
           data = await wikiAPI(language, {prop:'extracts|pageimages|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'950',piprop:'thumbnail',pithumbsize:'700',redirects:'1',titles:pageTitle}, controller.signal);
         } else {
-          data = await wikiAPI(language, {generator:'search',gsrsearch:place.name,gsrlimit:'1',prop:'extracts|pageimages|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'950',piprop:'thumbnail',pithumbsize:'700'}, controller.signal);
+          return null; // A name alone does not establish place identity.
         }
         return Object.values(data.query?.pages || {})[0];
       }
-      let page = await getPage(lang,title);
-      if ((!page || page.missing !== undefined || !page.extract) && lang === 'he') page = await getPage('en',null);
+      // Never search Wikipedia by business name: name matches are not identity matches.
+      let page = title ? await getPage(lang,title) : null;
       if (controller.signal.aborted) return;
       $('placeBody').replaceChildren();
       // Search results are not necessarily the same place: require name match or direct OSM link.
@@ -1928,7 +1928,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     const played=ready && v322PlayNote(0,true);
     if(played) v328FlushSounds();
     btn.textContent=played?'♪ Sound played':'♪ Try again';
-    v3Toast(played?'🔔 Test sound played. Check device volume if you did not hear it.':'Audio was blocked by the browser. Tap Test sound again.');
+    v3Toast(played?'✨ Crystal Discovery played.':'Sound is loading or audio is blocked. Wait a moment and tap Test sound again.');
     setTimeout(()=>{btn.textContent='♪ Test sound';},3500);
   });
   $('storyExpand').addEventListener('click',()=>{
