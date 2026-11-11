@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>SIDEWALK — Explore More · V3.6 Beta</title>
+  <title>SIDEWALK — Explore More · V3.6.1 Beta</title>
   <link rel="icon" type="image/png" href="sidewalk-app-icon.png">
   <link rel="apple-touch-icon" href="sidewalk-app-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -626,6 +626,32 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
 .v36-mode.active small{color:#f3efff}
 @media(max-width:360px){.v36-mode{padding:8px 3px}.v36-mode span{font-size:11px}.v36-mode small{font-size:9px}}
 
+
+/* V3.6.1 Discovery Cards 2.0 — presentation only; GPS/search/ranking untouched */
+.discovery-card.sw361-cafe{--sw361-accent:#e6b781;--sw361-accent-soft:#493b37;--sw361-ink:#f7dec0;border-color:#715746!important}
+.discovery-card.sw361-park{--sw361-accent:#83d9b3;--sw361-accent-soft:#25473f;--sw361-ink:#c7f3db;border-color:#416b5b!important}
+.discovery-card.sw361-cafe .body{background:linear-gradient(145deg,#342e36,#282c3b)!important}
+.discovery-card.sw361-park .body{background:linear-gradient(145deg,#223d3d,#253444)!important}
+.discovery-card.sw361-cafe .category-chip{background:#f6d6a8ee!important;color:#54351f!important}
+.discovery-card.sw361-park .category-chip{background:#bcecd3ee!important;color:#174b39!important}
+.discovery-card.sw361-cafe .why,.discovery-card.sw361-park .why{background:var(--sw361-accent-soft)!important;color:var(--sw361-ink)!important;border:1px solid color-mix(in srgb,var(--sw361-accent) 24%,transparent);border-radius:12px;padding:9px 11px;font-size:12px!important}
+.discovery-card.sw361-cafe strong,.discovery-card.sw361-park strong{font-size:18px!important;letter-spacing:-.3px}
+.discovery-card.sw361-cafe .distance-chip,.discovery-card.sw361-park .distance-chip{background:#111827df!important;border:1px solid #ffffff44!important}
+.discovery-card.sw361-cafe .discovery-art,.discovery-card.sw361-park .discovery-art{height:205px}
+.discovery-card.sw361-cafe.featured .discovery-art,.discovery-card.sw361-park.featured .discovery-art{height:255px}
+.discovery-card.sw361-cafe .discovery-art img,.discovery-card.sw361-park .discovery-art img{filter:saturate(1.12) contrast(1.045) brightness(.96)}
+.discovery-card.sw361-cafe .discovery-art::after,.discovery-card.sw361-park .discovery-art::after{content:'';display:block!important;position:absolute;inset:auto 0 0!important;width:100%!important;height:45%!important;left:0!important;top:auto!important;right:0!important;bottom:0!important;border:0!important;border-radius:0!important;background:linear-gradient(transparent,#0e18258c)!important;z-index:3!important;pointer-events:none}
+.discovery-card.sw361-cafe .featured-label{background:#9c633de8!important}.discovery-card.sw361-park .featured-label{background:#297d61e8!important}
+.discovery-card.sw361-cafe:hover,.discovery-card.sw361-park:hover{box-shadow:0 13px 35px #020711c9,0 0 0 1px var(--sw361-accent)!important}
+/* List stays compact and uses a side thumbnail rather than a hero photo. */
+.v328-list .discovery-card.sw361-cafe,.v328-list .discovery-card.sw361-park{min-height:112px!important}
+.v328-list .discovery-card.sw361-cafe .discovery-art,.v328-list .discovery-card.sw361-park .discovery-art,
+.v328-list .discovery-card.sw361-cafe.featured .discovery-art,.v328-list .discovery-card.sw361-park.featured .discovery-art{flex:0 0 110px!important;width:110px!important;height:auto!important;min-height:112px!important}
+.v328-list .discovery-card.sw361-cafe .body,.v328-list .discovery-card.sw361-park .body{padding:13px 14px!important;justify-content:center}
+.v328-list .discovery-card.sw361-cafe strong,.v328-list .discovery-card.sw361-park strong{font-size:16px!important}
+.v328-list .discovery-card.sw361-cafe .why,.v328-list .discovery-card.sw361-park .why{display:none!important}
+@media(max-width:380px){.v328-list .discovery-card.sw361-cafe .discovery-art,.v328-list .discovery-card.sw361-park .discovery-art,.v328-list .discovery-card.sw361-cafe.featured .discovery-art,.v328-list .discovery-card.sw361-park.featured .discovery-art{flex-basis:94px!important;width:94px!important}}
+@media(prefers-reduced-motion:reduce){.discovery-card.sw361-cafe,.discovery-card.sw361-park{transition:none!important}}
 </style>
 </head>
 
@@ -642,7 +668,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
         <span class="gps-symbol" aria-hidden="true">⌖</span><span id="gpsToggleText">GPS OFF</span>
       </button>
     </div>
-    <div class="version-tag">V3.6 SMART DISCOVERY BETA · EXPLORE MORE</div>
+    <div class="version-tag">V3.6.1 DISCOVERY CARDS BETA · EXPLORE MORE</div>
   </section>
 
   <section class="card legacy-location">
@@ -777,6 +803,14 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
   const v328Sounded=new Set();
   const v328Queued=new Map();
   let v328SoundSequence=Promise.resolve();
+  let v37CrystalBuffer=null;
+  let v37LastChime=0;
+  const V37_CHIME_COOLDOWN=90000; // Avoid repeated interruptions while walking.
+  fetch('./sidewalk-crystal-discovery.wav').then(r=>{if(!r.ok)throw Error('Audio unavailable');return r.arrayBuffer();}).then(b=>{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const ctx=v322Audio||(v322Audio=new C());return ctx.decodeAudioData(b);}).then(b=>{v37CrystalBuffer=b;if(v328Queued.size)v328FlushSounds();}).catch(e=>console.warn('Crystal sound unavailable:',e));
+  function v37IsSpecial(place){
+    const c=classifyPlace(place);
+    return ['History & culture','Monument & memorial','Viewpoint','Attraction'].includes(c.label) && Boolean(place.tags?.wikipedia||place.tags?.wikidata||place.tags?.historic);
+  }
   function v328AudioStatus(message){
     const el=$('v328AudioStatus');if(!el)return;
     el.hidden=!message;el.textContent=message||'';
@@ -784,6 +818,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
   function v328QueueSound(place,index){
     const key=v322PlaceKey(place);
     if(v328Sounded.has(key)||v328Queued.has(key))return;
+    if(!v37IsSpecial(place))return;
     v328Queued.set(key,index);
   }
   async function v328FlushSounds(){
@@ -794,12 +829,14 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       return;
     }
     v328AudioStatus('');
-    const entries=[...v328Queued.entries()];v328Queued.clear();
+    const entries=[...v328Queued.entries()].slice(0,1);v328Queued.clear();
     v328SoundSequence=v328SoundSequence.then(async()=>{
       for(const [key,index] of entries){
         if(v328Sounded.has(key))continue;
         if(!v3SoundEnabled||document.visibilityState!=='visible'){v328Queued.set(key,index);continue;}
+        if(Date.now()-v37LastChime<V37_CHIME_COOLDOWN)continue;
         const played=v322PlayNote(index);
+        if(played)v37LastChime=Date.now();
         if(played){v328Sounded.add(key);await new Promise(resolve=>setTimeout(resolve,480));}
         else v328Queued.set(key,index);
       }
@@ -862,22 +899,14 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
   function v322PlaceKey(p){return String(p.id??`${p.name}:${p.lat.toFixed(5)}:${p.lon.toFixed(5)}`);}
   function v322PlayNote(index,force=false){
     if((!v3SoundEnabled&&!force)||document.visibilityState!=='visible'||!v322Audio||v322Audio.state!=='running')return false;
+    if(!v37CrystalBuffer)return false;
     try{
-      const ctx=v322Audio,now=ctx.currentTime;
-      // Soft two-tone bell: more audible than the previous 220ms sine ping.
-      for(const [offset,frequency,volume] of [[0,659.25,.13],[.12,987.77,.085]]){
-        const osc=ctx.createOscillator(),gain=ctx.createGain();
-        osc.type='sine';osc.frequency.value=frequency*Math.pow(2,(index%3)/12);
-        gain.gain.setValueAtTime(.0001,now+offset);
-        gain.gain.exponentialRampToValueAtTime(volume,now+offset+.025);
-        gain.gain.exponentialRampToValueAtTime(.0001,now+offset+.46);
-        osc.connect(gain);gain.connect(ctx.destination);
-        osc.start(now+offset);osc.stop(now+offset+.48);
-      }
+      const ctx=v322Audio,src=ctx.createBufferSource(),gain=ctx.createGain();
+      src.buffer=v37CrystalBuffer;gain.gain.value=.48;
+      src.connect(gain);gain.connect(ctx.destination);src.start();
       return true;
-    }catch(e){return false;}
+    }catch(e){console.warn('Crystal playback failed',e);return false;}
   }
-
 
 
   let lastGeocodeLat = null;
@@ -1522,12 +1551,9 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       const directInfo=await getShortPlaceInfo(place);
       if(token!==travelSheetToken) return;
       let info=directInfo;
-      if(!storyEligible(info)) {
-        $('travelSummary').textContent=directInfo?.text || place.tags.description || 'Looking for a story about the surrounding area...';
-        info=await getNearbyLandmarkStory(place);
-        if(token!==travelSheetToken) return;
-        if(!info) info=directInfo;
-      }
+      // Nearby landmarks are not automatically attributed to restaurants or shops.
+      // Only show a verified direct place story; otherwise use the POI category.
+      if(!storyEligible(info)) info=directInfo;
       $('travelSummary').textContent=info?.nearby
         ? `Nearby story · ${info.title} (${info.distance} m away): ${info.text}`
         : info?.text || place.tags['description:he'] || place.tags.description ||
@@ -1604,7 +1630,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       async function lookup(language, exactTitle) {
         const params = {prop:'extracts|pageimages',exintro:'1',explaintext:'1',exchars:'450',piprop:'thumbnail',pithumbsize:'650'};
         if (exactTitle) Object.assign(params,{titles:exactTitle,redirects:'1'});
-        else Object.assign(params,{generator:'search',gsrsearch:place.name,gsrlimit:'1'});
+        else return null; // Never search by name alone.
         const data = await wikiAPI(language,params);
         const page = Object.values(data.query?.pages || {})[0];
         if (!page?.extract || page.missing !== undefined) return null;
@@ -1613,8 +1639,8 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
         if (!exactTitle && (!requested || !pageName || !(pageName.includes(requested) || requested.includes(pageName)))) return null;
         return {text:shortDescription(page.extract),fullText:page.extract,image:page.thumbnail?.source || null,lang:language,title:page.title};
       }
-      let result = await lookup(lang,title);
-      if (!result && lang==='he' && !title) result = await lookup('en',null);
+      // Trusted content: only explicit Wikipedia tags supplied with this exact POI.
+      let result = title ? await lookup(lang,title) : null;
       return result;
     })();
     shortInfoCache.set(key,promise);
@@ -1628,7 +1654,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     $('placeCard').hidden = false;
     $('placeTitle').textContent = place.name;
     $('placeBody').replaceChildren();
-    placeParagraph('Looking for place details and photos...');
+    placeParagraph('Looking for verified place details...');
     $('placeCard').scrollIntoView({behavior:'smooth',block:'start'});
     try {
       // Use a direct Wikipedia link when OSM provides one; otherwise search by name.
@@ -1644,12 +1670,12 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
         if (pageTitle) {
           data = await wikiAPI(language, {prop:'extracts|pageimages|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'950',piprop:'thumbnail',pithumbsize:'700',redirects:'1',titles:pageTitle}, controller.signal);
         } else {
-          data = await wikiAPI(language, {generator:'search',gsrsearch:place.name,gsrlimit:'1',prop:'extracts|pageimages|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'950',piprop:'thumbnail',pithumbsize:'700'}, controller.signal);
+          return null; // A name alone does not establish place identity.
         }
         return Object.values(data.query?.pages || {})[0];
       }
-      let page = await getPage(lang,title);
-      if ((!page || page.missing !== undefined || !page.extract) && lang === 'he') page = await getPage('en',null);
+      // Never search Wikipedia by business name: name matches are not identity matches.
+      let page = title ? await getPage(lang,title) : null;
       if (controller.signal.aborted) return;
       $('placeBody').replaceChildren();
       // Search results are not necessarily the same place: require name match or direct OSM link.
@@ -1768,10 +1794,15 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     if(!items.length){const p=document.createElement('p');p.className='v3-note';p.textContent=v3Places.length?'No places match this filter. Try Explore all.':'No discoveries found in this area. Refresh or keep walking.';host.append(p);return;}
     items.forEach((place,index)=>{
       const category=classifyPlace(place);
-      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');btn.style.setProperty('--enter-delay',reveal?'0ms':Math.min(index*65,260)+'ms');
+      const btn=document.createElement('button');btn.type='button';btn.className='discovery-card'+(index===0?' featured':'');
+      const categoryLabel=String(category.label||'').toLowerCase();
+      const rawKind=[place.tags?.amenity,place.tags?.leisure,place.tags?.shop,place.tags?.tourism,place.kind].filter(Boolean).join(' ').toLowerCase();
+      const isCafe=/caf[eé]|coffee|bakery|pastry/.test(categoryLabel+' '+rawKind);
+      const isPark=/park|garden|nature|botanical|green_space/.test(categoryLabel+' '+rawKind);
+      if(isCafe)btn.classList.add('sw361-cafe');else if(isPark)btn.classList.add('sw361-park');btn.style.setProperty('--enter-delay',reveal?'0ms':Math.min(index*65,260)+'ms');
       const art=document.createElement('span');art.className='discovery-art';
       const kind=(place.tags?.historic||place.tags?.tourism||place.tags?.amenity||place.tags?.shop||'').toLowerCase();
-      const palette=/restaurant|cafe|food|bakery/.test(kind)?['#ffb467','#ff6e7d']:/bar|pub|nightclub/.test(kind)?['#ac83ed','#ed6dba']:/park|garden|nature/.test(kind)?['#7bdaa0','#1aa9a3']:/shop|market/.test(kind)?['#ffcf70','#f57d71']:['#6fbce9','#9e82e9'];
+      const palette=isCafe?['#a66a38','#e0b57e']:isPark?['#1d795e','#74bca3']:/restaurant|food/.test(kind)?['#ffb467','#ff6e7d']:/bar|pub|nightclub/.test(kind)?['#ac83ed','#ed6dba']:/shop|market/.test(kind)?['#ffcf70','#f57d71']:['#6fbce9','#9e82e9'];
       art.style.setProperty('--tone1',palette[0]);art.style.setProperty('--tone2',palette[1]);
       const em=document.createElement('span');em.className='em';em.textContent=category.emoji;
       const chip=document.createElement('span');chip.className='category-chip';chip.textContent=placeDetailLabel(place);
@@ -1780,8 +1811,8 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
       if(index===0){const featuredLabel=document.createElement('span');featuredLabel.className='featured-label';featuredLabel.textContent='✨ Featured discovery';art.append(featuredLabel);}
       const body=document.createElement('span');body.className='body';
       const title=document.createElement('strong');title.textContent=place.name;
-      const meta=document.createElement('small');meta.textContent=placeDetailLabel(place)+' · '+(index===0?'A place worth discovering nearby':'Discover something new nearby');
-      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 Discover the story behind this place':'✨ Explore this place and its surroundings ←';
+      const meta=document.createElement('small');meta.textContent=placeDetailLabel(place)+(isCafe?' · Coffee & cafés':isPark?' · Parks & gardens':'');
+      const why=document.createElement('span');why.className='why';why.textContent=place.tags.wikipedia||place.tags.wikidata?'🎧 Discover the story behind this place':isCafe?'☕ View café details':isPark?'🌿 Explore this green space':'✨ Explore this place and its surroundings ←';
       body.append(title,meta,why);btn.append(art,body);btn.addEventListener('click',()=>openTravelSheet(place));host.append(btn);
       v32LoadPhoto(place,art);
       if(reveal){
@@ -1897,7 +1928,7 @@ h2,.v3-intro h2{color:#f1f4ff!important;-webkit-text-fill-color:#f1f4ff!importan
     const played=ready && v322PlayNote(0,true);
     if(played) v328FlushSounds();
     btn.textContent=played?'♪ Sound played':'♪ Try again';
-    v3Toast(played?'🔔 Test sound played. Check device volume if you did not hear it.':'Audio was blocked by the browser. Tap Test sound again.');
+    v3Toast(played?'✨ Crystal Discovery played.':'Sound is loading or audio is blocked. Wait a moment and tap Test sound again.');
     setTimeout(()=>{btn.textContent='♪ Test sound';},3500);
   });
   $('storyExpand').addEventListener('click',()=>{
